@@ -13,10 +13,14 @@ def main():
     for tool in ('ffmpeg','ffprobe'):
         if not shutil.which(tool):
             sys.exit(f'{tool} is missing. Install FFmpeg and add its bin folder to PATH. See docs/LOCAL_SETUP.md.')
+    host,port=os.environ.get('ECHOSPHERE_HOST','127.0.0.1'),os.environ.get('ECHOSPHERE_PORT','8765')
+    if host not in ('127.0.0.1','localhost','::1') and len(os.environ.get('ECHOSPHERE_API_KEY',''))<24:
+        sys.exit('Listening beyond this computer requires ECHOSPHERE_API_KEY (at least 24 characters) and ECHOSPHERE_ALLOWED_HOSTS.')
+    extra=['--proxy-headers','--forwarded-allow-ips','*'] if os.environ.get('ECHOSPHERE_BEHIND_PROXY')=='1' else []
     children=[]
     try:
         children.append(subprocess.Popen([sys.executable,'-m','server.worker']))
-        children.append(subprocess.Popen([sys.executable,'-m','uvicorn','server.app:app','--host','127.0.0.1','--port','8765']))
+        children.append(subprocess.Popen([sys.executable,'-m','uvicorn','server.app:app','--host',host,'--port',port]+extra))
         print('\nEchoSphere: http://127.0.0.1:8765\nPress Ctrl+C to stop both processes.\n',flush=True)
         while all(child.poll() is None for child in children):
             time.sleep(.5)

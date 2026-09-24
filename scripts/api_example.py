@@ -1,5 +1,6 @@
 """Use the full workflow without a browser. Requires an explicit focus JSON."""
 import argparse
+import os
 import json
 import time
 from pathlib import Path
@@ -11,13 +12,16 @@ def main():
     p.add_argument('video',type=Path)
     p.add_argument('--focus',required=True,type=Path,help='JSON array of normalized sphere focus points')
     p.add_argument('--url',default='http://127.0.0.1:8765')
+    p.add_argument('--key-env',default='ECHOSPHERE_API_KEY',help='Environment variable holding the access key (hosted servers)')
     p.add_argument('--engine',choices=['composer','ace'],default='composer')
     p.add_argument('--analyzer',choices=['measurements','qwen'],default='measurements')
     p.add_argument('--mood',choices=['auto','warm','calm','sad','anger'],default='auto')
     p.add_argument('--seed',type=int,default=42)
     p.add_argument('--output',type=Path,default=Path('data/api-output'))
     a=p.parse_args();a.output.mkdir(parents=True,exist_ok=True)
-    with httpx.Client(base_url=a.url,timeout=120,trust_env=False) as c:
+    key=os.environ.get(a.key_env,'')
+    headers={'Authorization':f'Bearer {key}'} if key else {}
+    with httpx.Client(base_url=a.url,timeout=120,trust_env=False,headers=headers) as c:
         def read(r):
             r.raise_for_status();return r.json()
         def wait(id):

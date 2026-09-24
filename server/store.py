@@ -4,7 +4,7 @@ import sqlite3
 import time
 import uuid
 from contextlib import contextmanager
-from .config import DATA
+from .config import DATA, MAX_QUEUE
 
 ACTIVE = ('queued', 'running')
 
@@ -79,8 +79,8 @@ def enqueue(video_id, kind, payload, idempotency=None):
                 if old['video_id'] != video_id or old['kind'] != kind or old['payload'] != payload:
                     raise ValueError('This idempotency key was already used for different input.')
                 return old
-        if db.execute("SELECT COUNT(*) FROM jobs WHERE state IN ('queued','running')").fetchone()[0] >= 20:
-            raise ValueError('The local queue is full. Wait for a job to finish.')
+        if db.execute("SELECT COUNT(*) FROM jobs WHERE state IN ('queued','running')").fetchone()[0] >= MAX_QUEUE:
+            raise ValueError('The queue is full. Wait for a job to finish and retry.')
         if kind=='analysis' and db.execute("SELECT 1 FROM jobs WHERE video_id=? AND kind='analysis' AND state IN ('queued','running')",(video_id,)).fetchone():
             raise ValueError('An analysis is already queued for this video.')
         db.execute('INSERT INTO jobs (id,video_id,kind,state,phase,payload,created,updated,idempotency) VALUES (?,?,?,?,?,?,?,?,?)',

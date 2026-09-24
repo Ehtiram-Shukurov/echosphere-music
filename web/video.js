@@ -17,9 +17,35 @@ const source=$('sourceVideo'),canvas=$('focusCanvas'),preview=$('resultVideo');
 const mp4Supported=!!source.canPlayType('video/mp4; codecs="avc1.42E01E, mp4a.40.2"');
 
 function message(text,error=false){$('status').textContent=text;$('status').classList.toggle('error',error);}
-async function api(path,options={}){
+let signingIn=null;
+function signIn(){
+  // Hosted servers set a key; it is exchanged once for an HttpOnly session cookie and never stored by the page.
+  signingIn??=new Promise((resolve,reject)=>{
+    const dialog=document.createElement('dialog');dialog.setAttribute('aria-labelledby','signInTitle');
+    const form=document.createElement('form');form.className='signin';
+    const title=Object.assign(document.createElement('h2'),{id:'signInTitle',textContent:'Enter the access key'});
+    const help=Object.assign(document.createElement('p'),{className:'helper',textContent:'This EchoSphere server is private.'});
+    const input=Object.assign(document.createElement('input'),{type:'password',required:true,autocomplete:'current-password'});input.setAttribute('aria-label','Access key');
+    const error=Object.assign(document.createElement('p'),{className:'helper'});error.setAttribute('role','alert');
+    const button=Object.assign(document.createElement('button'),{type:'submit',className:'primary-button',textContent:'Sign in'});
+    form.append(title,help,input,error,button);dialog.append(form);document.body.append(dialog);
+    let done=false;
+    const finish=(ok,reason)=>{done=true;dialog.close();dialog.remove();signingIn=null;ok?resolve():reject(new Error(reason));};
+    form.addEventListener('submit',async e=>{e.preventDefault();button.disabled=true;error.textContent='';
+      try{const r=await fetch(API+'/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:input.value}),signal:AbortSignal.timeout(20000)});
+        if(r.ok){input.value='';finish(true);return;}
+        let d;try{d=(await r.json()).detail;}catch{}error.textContent=typeof d==='string'?d:'Sign-in failed.';}
+      catch{error.textContent='Could not reach the server.';}
+      button.disabled=false;});
+    dialog.addEventListener('cancel',e=>{e.preventDefault();finish(false,'Sign-in is required to use this server.');});
+    dialog.showModal();input.focus();
+  });
+  return signingIn;
+}
+async function api(path,options={},retry=true){
   const response=await fetch(API+path,{...options,signal:options.signal||AbortSignal.timeout(120000)});
-  if(!response.ok){let body;try{body=await response.json();}catch{throw new Error('The local server returned an unreadable response.');}
+  if(response.status===401&&retry){await signIn();return api(path,options,false);}
+  if(!response.ok){let body;try{body=await response.json();}catch{throw new Error('The server returned an unreadable response.');}
     throw new Error(typeof body.detail==='string'?body.detail:body.detail?.map?.(x=>x.msg).join('; ')||'Request failed.');}
   return response.json();
 }
@@ -185,7 +211,8 @@ preview.addEventListener('play',async()=>{
 });
 for(const event of ['pause','ended','emptied'])preview.addEventListener(event,()=>{isPlaying=false;});
 async function start(){
-  try{const h=await api('/health',{signal:AbortSignal.timeout(8000)});$('connection').textContent=h.worker_online?'Local server connected':'Worker not running';
+  try{const gate=await api('/auth/status',{signal:AbortSignal.timeout(8000)});if(gate.required&&!gate.authenticated)await signIn();
+    const h=await api('/health',{signal:AbortSignal.timeout(8000)});$('connection').textContent=h.worker_online?'Server connected':'Worker not running';
     if(!h.worker_online)message('Start the worker with python -m server.worker, or use python run_local.py.',true);
     else if(!h.ffmpeg)message('Install FFmpeg and ffprobe before importing a video.',true);
     $('engine').querySelector('[value="composer"]').disabled=!h.engines.composer;

@@ -12,8 +12,9 @@ from fastapi.testclient import TestClient
 @pytest.fixture
 def services(tmp_path,monkeypatch):
     monkeypatch.setenv('ECHOSPHERE_DATA',str(tmp_path/'data'))
-    from server import config,store,media,analysis,engines,worker,app
-    for module in (config,store,media,analysis,engines,worker,app):importlib.reload(module)
+    for name in ('ECHOSPHERE_API_KEY','ECHOSPHERE_ALLOWED_HOSTS','ECHOSPHERE_RETENTION_HOURS','ECHOSPHERE_MAX_STORAGE_GB','ECHOSPHERE_MAX_QUEUE'):monkeypatch.delenv(name,raising=False)
+    from server import config,auth,store,retention,media,analysis,engines,worker,app
+    for module in (config,auth,store,retention,media,analysis,engines,worker,app):importlib.reload(module)
     with TestClient(app.app) as client:
         yield client,store,worker
 

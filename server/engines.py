@@ -1,5 +1,6 @@
 import base64
 import json
+import os
 import time
 from urllib.parse import urljoin, urlparse
 import httpx
@@ -30,7 +31,9 @@ def composer(brief, folder, check):
     """Use the actual existing Web Audio renderer; no Python instrument rewrite."""
     check()
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+        # Containers often lack the kernel features Chromium's sandbox needs. The page
+        # is our own file, and every non-file/data request is aborted below.
+        browser = p.chromium.launch(headless=True, args=['--no-sandbox'] if os.environ.get('ECHOSPHERE_NO_SANDBOX') == '1' else [])
         try:
             page = browser.new_page()
             page.route('**/*', lambda route: route.continue_() if route.request.url.startswith(('file:', 'data:')) else route.abort())

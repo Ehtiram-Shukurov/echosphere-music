@@ -10,9 +10,9 @@ import httpx
 from fastapi import FastAPI, File, Header, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from . import store
+from . import auth, retention, store
 from .analysis import musical_brief
-from .config import DATA, ROOT, MAX_BYTES, OLLAMA_URL, OLLAMA_MODEL, ACE_URL, ACE_KEY
+from .config import DATA, ROOT, MAX_BYTES, OLLAMA_URL, OLLAMA_MODEL, ACE_URL, ACE_KEY, ALLOWED_HOSTS
 from .models import AnalysisRequest, SoundtrackRequest
 
 
@@ -25,19 +25,60 @@ async def lifespan(app):
 app = FastAPI(title='EchoSphere video soundtrack API',version='0.1.0',lifespan=lifespan)
 
 
+PUBLIC_PATHS = ('/', '/video.html', '/auth/login', '/auth/logout', '/auth/status', '/health')
+
+
 @app.middleware('http')
-async def local_boundary(request: Request, call_next):
-    # Local-only release: block cross-site mutations and DNS rebinding. Do not
-    # expose this process on a public interface; cloud auth is a later milestone.
-    if request.url.hostname not in ('127.0.0.1','localhost','::1','testserver'):
-        return JSONResponse({'detail':'This release accepts local connections only.'},status_code=403)
+async def boundary(request: Request, call_next):
+    # Host allow-list stops DNS rebinding; the origin check stops cross-site
+    # mutations; then the shared-secret check protects everything else. The
+    # page shell and static assets carry no data and stay reachable so the
+    # browser can show its sign-in prompt.
+    if (request.url.hostname or '').lower() not in ALLOWED_HOSTS:
+        return JSONResponse({'detail':'This host is not allowed.'},status_code=403)
     origin = request.headers.get('origin')
     if request.method not in ('GET','HEAD','OPTIONS') and origin:
         actual, expected = urlparse(origin), urlparse(str(request.base_url))
         if (actual.scheme,actual.netloc) != (expected.scheme,expected.netloc):
-            return JSONResponse({'detail':'Use the local EchoSphere website to submit this request.'},status_code=403)
+            return JSONResponse({'detail':'Use the EchoSphere website to submit this request.'},status_code=403)
+    path = request.url.path
+    if not (path in PUBLIC_PATHS or path.startswith('/web/')) and not auth.request_authenticated(request):
+        return JSONResponse({'detail':'Authentication required.'},status_code=401,headers={'WWW-Authenticate':'Bearer'})
     response = await call_next(request)
     response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['Cache-Control'] = 'no-store' if path.startswith(('/v1/','/auth/')) else response.headers.get('Cache-Control','no-cache')
+    return response
+
+
+@app.get('/auth/status')
+def auth_status(request: Request):
+    return {'required':auth.enabled(),'authenticated':auth.request_authenticated(request)}
+
+
+@app.post('/auth/login')
+async def login(request: Request):
+    client = request.client.host if request.client else 'unknown'
+    if auth.throttled(client):
+        raise HTTPException(429,'Too many failed attempts. Wait a few minutes.')
+    try:
+        key = (await request.json()).get('key','')
+    except Exception:
+        key = ''
+    if not auth.enabled():
+        return {'authenticated':True,'required':False}
+    if not isinstance(key,str) or not auth.key_matches(key):
+        auth.record_failure(client)
+        raise HTTPException(401,'That key was not accepted.')
+    response = JSONResponse({'authenticated':True,'required':True})
+    response.set_cookie(auth.COOKIE,auth.make_session(),max_age=auth.SESSION_HOURS*3600,httponly=True,
+                        samesite='strict',secure=request.url.scheme=='https',path='/')
+    return response
+
+
+@app.post('/auth/logout')
+def logout():
+    response = JSONResponse({'authenticated':False})
+    response.delete_cookie(auth.COOKIE,path='/')
     return response
 
 
@@ -73,7 +114,9 @@ def queue(video, kind, payload, key=None):
 
 
 @app.get('/health')
-async def health():
+async def health(request: Request):
+    if not auth.request_authenticated(request):
+        return {'status':'ok'}
     async def ping(base,path,headers=None):
         try:
             async with httpx.AsyncClient(timeout=1,trust_env=False) as client:
@@ -103,6 +146,8 @@ async def upload_video(file: UploadFile = File(...)):
         raise HTTPException(413,'Video must be 100 MB or smaller.')
     if shutil.disk_usage(DATA).free < 512*1024*1024:
         raise HTTPException(507,'Free at least 512 MB of local disk space before importing.')
+    if not retention.has_room(MAX_BYTES):
+        raise HTTPException(507,'Storage is full. Delete saved videos or wait for old ones to expire.')
     id = uuid.uuid4().hex
     folder = DATA/'videos'/id
     folder.mkdir(parents=True)

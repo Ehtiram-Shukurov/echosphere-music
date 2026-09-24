@@ -19,3 +19,5 @@ The standalone page above remains unchanged. A **local video-to-music developmen
 It adds MP4 import, adjustable sphere-only focus through camera movement, color/motion analysis, optional local Qwen interpretation, mood override, a persistent API/worker, video-length instrument composition, optional ACE-Step generation, saved takes, WAV export and video export. Cloud deployment is deferred.
 
 Start with [Local setup](docs/LOCAL_SETUP.md), then [API usage](docs/API.md). [Validation status](docs/VALIDATION.md) distinguishes the tested composer workflow from the still-unverified local AI-model quality gate. No uploaded videos, generated media, model weights or credentials are committed.
+
+Hosting preparation (authentication, quotas, cleanup, container) and a verified comparison of free hosting options are in [Hosting](docs/HOSTING.md). No cloud deployment exists yet.

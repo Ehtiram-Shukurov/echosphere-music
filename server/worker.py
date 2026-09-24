@@ -4,7 +4,7 @@ import logging
 import threading
 import time
 from contextlib import contextmanager
-from . import store, media, analysis, engines
+from . import store, media, analysis, engines, retention
 from .config import DATA
 
 log = logging.getLogger(__name__)
@@ -106,12 +106,19 @@ def main():
                 stopped.wait(3)
         thread = threading.Thread(target=pulse,daemon=True)
         thread.start()
+        next_sweep = 0
         try:
             while True:
                 job = store.claim()
                 if job:
                     process(job)
                 else:
+                    if time.monotonic() >= next_sweep:
+                        next_sweep = time.monotonic() + 600
+                        try:
+                            retention.sweep()
+                        except Exception:
+                            log.exception('Cleanup failed')
                     time.sleep(.4)
         except KeyboardInterrupt:
             pass
