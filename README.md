@@ -20,4 +20,4 @@ It adds MP4 import, adjustable sphere-only focus through camera movement, color/
 
 Start with [Local setup](docs/LOCAL_SETUP.md), then [API usage](docs/API.md). [Validation status](docs/VALIDATION.md) distinguishes the tested composer workflow from the still-unverified local AI-model quality gate. No uploaded videos, generated media, model weights or credentials are committed.
 
-Hosting preparation (authentication, quotas, cleanup, container) and a verified comparison of free hosting options are in [Hosting](docs/HOSTING.md). No cloud deployment exists yet.
+Hosting preparation (authentication, quotas, cleanup, container) and a verified comparison of free hosting options are in [Hosting](docs/HOSTING.md). A step-by-step [Oracle Always Free deployment guide](docs/DEPLOY_ORACLE.md) and `deploy/` files are written but untested on a real host. No cloud deployment exists yet.
