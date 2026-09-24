@@ -14,4 +14,8 @@ Instrument recordings from [tonejs-instruments by Nathaniel Brosowsky](https://g
 
 ## Status
 
-This is a working version, with further upgrades planned.
+The standalone page above remains unchanged. A **local video-to-music development version** is now available in `video.html`, served by `python run_local.py`.
+
+It adds MP4 import, adjustable sphere-only focus through camera movement, color/motion analysis, optional local Qwen interpretation, mood override, a persistent API/worker, video-length instrument composition, optional ACE-Step generation, saved takes, WAV export and video export. Cloud deployment is deferred.
+
+Start with [Local setup](docs/LOCAL_SETUP.md), then [API usage](docs/API.md). [Validation status](docs/VALIDATION.md) distinguishes the tested composer workflow from the still-unverified local AI-model quality gate. No uploaded videos, generated media, model weights or credentials are committed.
