@@ -24,7 +24,7 @@ The test runner emits a Starlette warning about its current httpx test-client in
 3. **User listening approval.** The provided demo is a functional example using the existing instrument engine with a duration-aware visual adapter. It is not evidence that the richer music-quality goal has been met.
 4. **Windows and target browser setup.** Setup instructions are included, but this execution environment is Linux. Use `scripts/doctor.py` to check the actual machine.
 5. **Broader release gates.** The original proposed multi-clip listening comparison, 20 consecutive valid generation jobs, long-session memory observations, low-disk fault injection, full offline model operation and quality averages are outstanding.
-6. **Cloud deployment.** Authentication, hosted storage, retention/quota policy, remote access and provider-specific adapters still need implementation. Local URLs are configurable, but that does not make this a publicly hosted service.
+6. **Cloud deployment.** A demo server now runs on Oracle Cloud (see `docs/DEPLOYMENT_STATUS.md`). Remaining: per-person accounts, backups, durable storage, and load and long-run testing.
 
 ## Known scope limits
 
@@ -38,7 +38,7 @@ The next acceptance step is the actual laptop setup and a short, matched-loudnes
 
 ## Automatic video-to-music pipeline (branch `feature/auto-video-api`)
 
-Recorded September 24 to 25, 2026. Added on top of the hosting work: `POST /v1/soundtracks/auto`, a CPU sphere detector with temporal tracking, detection overlays, and an explicit mood-ambiguity policy. **Nothing here is deployed.** The deployed server still runs commit `ac1b816`.
+Recorded September 24 to 25, 2026. Added on top of the hosting work: `POST /v1/soundtracks/auto`, a CPU sphere detector with temporal tracking, detection overlays, and an explicit mood-ambiguity policy. This work is merged to `main` and was deployed to the demo server on September 25, 2026.
 
 ### What is validated, and how far that goes
 
@@ -78,7 +78,7 @@ The four stills are static images turned into video with FFmpeg, on a black back
 - **Detection thresholds.** Coverage 0.7, quality 0.35, ambiguity 0.35, jitter 0.12 and the two-second gap limit were set by hand. They are not tuned on a range of clips and are not calibrated probabilities. `uncertainty_index` is a heuristic blend, not a probability.
 - **Mood accuracy.** The colour rule is a product-palette heuristic tested on the four supplied stills plus one demo. Calm versus Sad remains unresolved.
 - **Speed and memory on the hosted server.** Times above are from a Windows laptop.
-- **The new endpoint on the deployed server, behind Caddy.** Not deployed.
+- **The new endpoint's speed on the deployed server.** It is deployed (the server's API page lists `POST /v1/soundtracks/auto`), but no timed full run on the Oracle server is recorded in this file.
 - **Music quality.** Unchanged from the existing composer and not part of this work.
 
 ### API review fixes — September 25, 2026
@@ -91,4 +91,4 @@ The three review issues on commit `058890e` are fixed:
 
 Independent verification in the review workspace: **35 tests passed** on Linux/Python 3.12.14, using the pinned requirements, Playwright 1.51.0 Chromium headless shell and system FFmpeg. The suite includes real audio composition and video export. Six new regression cases cover invalid media, cancellation during import, both focus-duration boundaries, retries at full storage/queue capacity, and retry upload validation. The four bug-focused cases fail against the original code. One existing Starlette/httpx test-client deprecation warning remains.
 
-This verifies API behavior, not detector generalization, Calm/Sad accuracy, Windows deployment, or Oracle-hosted performance. These fixes have not been deployed.
+This verifies API behavior, not detector generalization, Calm/Sad accuracy, or Oracle-hosted performance. These fixes are merged and deployed; their behaviour on the Oracle server was not separately measured.

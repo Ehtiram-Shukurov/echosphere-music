@@ -14,12 +14,12 @@ Instrument recordings from [tonejs-instruments by Nathaniel Brosowsky](https://g
 
 ## Status
 
-The standalone page above remains unchanged. A **local video-to-music development version** is now available in `video.html`, served by `python run_local.py`.
+**Start with the [complete guide](docs/GUIDE.md):** what was built, how it works, how to use it and how to test it, in plain language.
 
-It adds MP4 import, adjustable sphere-only focus through camera movement, color/motion analysis, optional local Qwen interpretation, mood override, a persistent API/worker, video-length instrument composition, optional ACE-Step generation, saved takes, WAV export and video export. Cloud deployment is deferred.
+- **`index.html`** is the standalone music page above. It is unchanged and is what GitHub Pages serves.
+- **Video-to-music.** Give it a video of the EchoSphere robot and it finds the sphere, reads its colours to choose a mood, composes music of the same length, and returns a WAV and an MP4. The one-call endpoint is `POST /v1/soundtracks/auto`; the older manual route (`video.html`, or `/v1/videos` then `/analysis` then `/v1/soundtracks`) still works.
+- **Runs locally** with `python run_local.py` ([Local setup](docs/LOCAL_SETUP.md)), or on a server behind an access key ([Hosting](docs/HOSTING.md), [Oracle guide](docs/DEPLOY_ORACLE.md)). A demo server exists; where it runs and how it is billed is in [Deployment status](docs/DEPLOYMENT_STATUS.md). Its address and key are not published here.
+- **API reference:** [API](docs/API.md). **What was tested and what was not:** [Validation](docs/VALIDATION.md).
+- **Honest limits:** proven on one demo video and four still images, not on a wide range of real footage; Calm versus Sad is weak; the demo server is temporary and uses one shared key.
 
-Start with [Local setup](docs/LOCAL_SETUP.md), then [API usage](docs/API.md). [Validation status](docs/VALIDATION.md) distinguishes the tested composer workflow from the still-unverified local AI-model quality gate. No uploaded videos, generated media, model weights or credentials are committed.
-
-Hosting preparation (authentication, quotas, cleanup, container) and a verified comparison of free hosting options are in [Hosting](docs/HOSTING.md). A step-by-step [Oracle Always Free deployment guide](docs/DEPLOY_ORACLE.md) and `deploy/` files are written but untested on a real host. No cloud deployment exists yet.
-
-Development branch `feature/auto-video-api` adds `POST /v1/soundtracks/auto` (upload, sphere detection, mood, music in one job) with detection overlays for inspection. See [API](docs/API.md) and [Validation](docs/VALIDATION.md). Where the demo server runs and how it is billed is in [Deployment status](docs/DEPLOYMENT_STATUS.md).
+No uploaded videos, generated media, model weights or credentials are committed.

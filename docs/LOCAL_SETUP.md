@@ -96,7 +96,7 @@ Set these environment variables **before** starting `run_local.py`:
 | `ECHOSPHERE_ACE_MODEL` | provider default | Optional explicit DiT model |
 | `ECHOSPHERE_ACE_KEY` | empty | Optional key for your own local ACE service |
 
-The local release intentionally accepts loopback connections and same-origin mutations only. It is **not ready to expose directly to the internet**. For cloud deployment, add authentication, storage/retention rules, provider-specific job handling and an explicit allowed web origin. The processing functions are separate from the API to make that migration manageable.
+By default the local release accepts loopback connections and same-origin mutations only, and it is **not safe to expose directly to the internet** without a key. For a hosted setup, set `ECHOSPHERE_API_KEY` and the allowed host names and put it behind HTTPS; see [HOSTING.md](HOSTING.md) and [DEPLOY_ORACLE.md](DEPLOY_ORACLE.md). The processing functions are separate from the API to keep that migration manageable.
 
 ## Jobs, interruption and cancellation
 

@@ -1,6 +1,6 @@
 # Hosting the API
 
-Status: **prepared, not deployed.** No host has been chosen, no footage has left the local computer, and this branch has not been merged.
+Status: **in use as a demo.** A server was set up on Oracle Cloud from `docs/DEPLOY_ORACLE.md` and runs the merged code; where it runs and how it is billed is in `docs/DEPLOYMENT_STATUS.md`. The pull requests are merged.
 
 ## Can it be hosted for $0?
 
@@ -52,7 +52,7 @@ docker run --rm -p 8765:8765 -v echosphere-data:/data \
   -e ECHOSPHERE_ALLOWED_HOSTS=<public hostname> echosphere
 ```
 
-**The container has not been built or run yet.** Docker is not installed on the development computer. Everything else in this document was tested natively; see Validation.
+**The container was built and started on an Oracle Arm virtual machine** (September 24 to 25, 2026) using the compose files in `deploy/`. It has not been load-tested or run for a long period.
 
 ## Known limits of a first hosted release
 
@@ -73,4 +73,4 @@ Run on Windows 11, Python 3.12, September 24, 2026.
 - The real server was started with a random key and the demo video was processed through the API with that key, producing a 10 second WAV and MP4. Requests without or with a wrong key returned 401, and unauthenticated `/health` returned only its status.
 - In a browser the page showed the sign-in prompt and rejected a wrong key with a visible message. Sign-in with the correct key was covered by the automated tests, not typed into the browser.
 
-Not validated: the Docker image (Docker is not installed here); any actual cloud host; behavior behind a real reverse proxy; upload limits imposed by a host; hosted generation speed and memory; multi-user use.
+Not validated (updated September 25, 2026): behaviour under load or over a long run; upload limits imposed by a host; hosted generation speed and memory; multi-user use. The image and compose stack were built and started on an Oracle Arm VM.

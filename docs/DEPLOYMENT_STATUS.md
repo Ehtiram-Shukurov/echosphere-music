@@ -10,7 +10,7 @@ Recorded September 24 to 25, 2026. This describes the demo server that was set u
 | Operating system | Canonical Ubuntu 24.04, 64-bit Arm (`aarch64`) | Instance details page |
 | Shape | `VM.Standard.A2.Flex` | Reported by the owner from the console. It is **not** the Always Free-eligible shape (that is `VM.Standard.A1.Flex`). The OCPU count and memory were not recorded. |
 | Software | Docker Compose: the EchoSphere API and worker in one container, and Caddy in front for HTTPS | Built on the VM from the code in this repository |
-| Code version | The branch `codex/video-soundtrack-local`, commit `ac1b816`, cloned to the VM | `git clone` on the VM. Later work on `feature/auto-video-api` is **not deployed**. |
+| Code version | `main` at commit `55f3383` (the merged automatic pipeline), pulled onto the VM and rebuilt on September 25, 2026. The server was first set up from commit `ac1b816`. | `git pull` and `docker compose up -d --build` on the VM. The server's API page lists `POST /v1/soundtracks/auto`, which the earlier version did not have. A timed full run on the VM has not been recorded. |
 | Public access | HTTPS on the hostname, port 80 redirecting to 443. Data routes returned 401 without the key; `/health` returned only its status. | Requests made from outside the VM |
 | Storage | A Docker volume on the VM's boot disk. Videos and results are deleted after 24 hours of inactivity and uploads stop at a 20 GB total. | Defaults in `deploy/docker-compose.yml`. Not changed on the VM as far as is known. |
 

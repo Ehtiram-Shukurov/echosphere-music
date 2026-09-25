@@ -1,6 +1,6 @@
 # Deploy on Oracle Cloud Always Free
 
-Status: **written but never run on Oracle.** Every command below is standard, but none has been executed on a real Oracle VM, and Oracle's screens and free limits change (it halved its free Arm allowance in June 2026 without announcement). Treat each numbered step as a checkpoint and stop if something looks different.
+Status: **used once, on September 24 to 25, 2026, and it worked.** Differences from what is written below: the free `VM.Standard.A1.Flex` shape was out of capacity in all three Chicago availability domains, so the server uses `VM.Standard.A2.Flex` on the account's promotional credit (see `docs/DEPLOYMENT_STATUS.md`). The Playwright base image built on 64-bit Arm without needing the fallback. Oracle's screens and free limits change (it halved its free Arm allowance in June 2026 without announcement), so treat each step as a checkpoint.
 
 Goal: a private, always-on HTTPS address for the EchoSphere API, at **$0**.
 
