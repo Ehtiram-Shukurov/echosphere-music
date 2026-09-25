@@ -107,6 +107,7 @@ def analyze(video, folder, request, check):
     fingerprint = hashlib.sha256(json.dumps({'focus':request['focus'],'series':series,'analyzer':provenance},sort_keys=True).encode()).hexdigest()
     return {'schema_version':1,'mood':mood,'ambiguous':ambiguous,'observations':observations,
             'focus':request['focus'],'evidence':evidence,'timeline':series,'palette_scores':scores,
+            'palette_scores_note':'Relative colour shares from a product palette rule. They are not calibrated probabilities.',
             'mean_energy':float(np.mean(smooth)),'mean_brightness':float(np.mean([f['brightness'] for f in series])),
             'analyzer':provenance,'warnings':warnings,'fingerprint':fingerprint}
 

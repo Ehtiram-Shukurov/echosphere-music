@@ -41,6 +41,28 @@ class SoundtrackRequest(StrictModel):
     seed: int = Field(default=42, ge=0, le=4294967295)
 
 
+class AutoOptions(StrictModel):
+    """Options for POST /v1/soundtracks/auto. Explicit input modes; nothing is guessed silently."""
+    input_mode: Literal['robot', 'sphere', 'focus']
+    mood: Literal['auto', 'warm', 'calm', 'sad', 'anger'] = 'auto'
+    on_ambiguous: Literal['fail', 'best_guess'] = 'fail'
+    engine: Literal['composer'] = 'composer'
+    seed: int = Field(default=42, ge=0, le=4294967295)
+    focus: list[FocusPoint] | None = Field(default=None, min_length=1, max_length=16)
+
+    @model_validator(mode='after')
+    def consistent(self):
+        if self.input_mode == 'focus':
+            if not self.focus:
+                raise ValueError("input_mode 'focus' requires focus points.")
+            times = [p.time for p in self.focus]
+            if times[0] != 0 or any(b <= a for a, b in zip(times, times[1:])):
+                raise ValueError('Focus points must start at 0 and have increasing times.')
+        elif self.focus:
+            raise ValueError("focus points are only accepted with input_mode 'focus'.")
+        return self
+
+
 class VisionResult(StrictModel):
     mood: Mood | None
     observations: list[str] = Field(min_length=1, max_length=6)

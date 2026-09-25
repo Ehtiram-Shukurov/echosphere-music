@@ -7,3 +7,5 @@ test-results/
 *.pyc
 data-*/
 data-hosted*
+review-evidence/
+data-e2e*

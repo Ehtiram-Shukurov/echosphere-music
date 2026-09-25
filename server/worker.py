@@ -4,7 +4,7 @@ import logging
 import threading
 import time
 from contextlib import contextmanager
-from . import store, media, analysis, engines, retention
+from . import store, media, analysis, engines, retention, auto
 from .config import DATA
 
 log = logging.getLogger(__name__)
@@ -45,6 +45,14 @@ def process(job):
     def stage(text):
         store.update('jobs',id,phase=text)
 
+    def fail_import(message):
+        # Auto soundtrack jobs also import their video. Keep the video and job
+        # states consistent, without invalidating a video after import succeeds.
+        imports_video = kind == 'import' or (kind == 'soundtrack' and job['payload'].get('auto'))
+        current = store.get('videos', video['id'])
+        if imports_video and current and current['state'] in ('queued', 'importing'):
+            store.update('videos', video['id'], state='failed', error=message)
+
     try:
         check()
         source = DATA/'videos'/video['id']
@@ -64,17 +72,21 @@ def process(job):
             check()
             store.update('videos',video['id'],analysis=result)
         elif kind == 'soundtrack':
-            brief = job['payload']['brief']
-            if job['payload']['engine']=='ace':
+            if job['payload'].get('auto'):
+                brief, extra = auto.prepare(job, stage, check)
+                engine = job['payload']['options']['engine']
+            else:
+                brief, extra, engine = job['payload']['brief'], {}, job['payload']['engine']
+            if engine=='ace':
                 engines.ensure_ace_idle()
-            stage('Composing with instrument samples' if job['payload']['engine']=='composer' else 'Generating with ACE-Step')
-            provenance = engines.composer(brief,folder,check) if job['payload']['engine']=='composer' else engines.ace(brief,folder,check,stage)
+            stage('Composing with instrument samples' if engine=='composer' else 'Generating with ACE-Step')
+            provenance = engines.composer(brief,folder,check) if engine=='composer' else engines.ace(brief,folder,check,stage)
             check()
             stage('Finishing audio')
             stats = media.finish_audio(folder/'raw.wav',folder,brief['duration'],check)
             stage('Combining video and music')
             media.mux(source/'preview.mp4',folder/'soundtrack.wav',folder,check)
-            result = {'brief':brief,'audio':stats,'provenance':provenance}
+            result = {'brief':brief,'audio':stats,'provenance':provenance,**extra}
             (folder/'result.json').write_text(json.dumps(result,indent=2),encoding='utf-8')
         else:
             raise RuntimeError('Unknown job kind.')
@@ -82,16 +94,17 @@ def process(job):
         store.update('jobs',id,state='complete',phase='Ready',result=result)
     except Cancelled:
         store.update('jobs',id,state='cancelled',phase='Cancelled')
-        if kind == 'import':
-            store.update('videos',video['id'],state='failed',error='Import cancelled.')
+        fail_import('Import cancelled.')
+    except auto.AutoFailure as e:
+        # An expected, explained refusal: keep the evidence (overlay, scores) with the job.
+        store.update('jobs',id,state='failed',phase='Failed',error=str(e)[:1600],result={'error_code':e.code,**e.details})
     except Exception as e:
         log.exception('Job %s failed',id)
         message = str(e)
         if isinstance(e, __import__('httpx').ConnectError):
             message = 'The selected local model service is not running. See docs/LOCAL_SETUP.md.'
         store.update('jobs',id,state='failed',phase='Failed',error=message[:1600])
-        if kind == 'import':
-            store.update('videos',video['id'],state='failed',error=message[:1600])
+        fail_import(message[:1600])
 
 
 def main():
