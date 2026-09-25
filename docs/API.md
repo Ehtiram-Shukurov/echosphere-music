@@ -68,7 +68,7 @@ Multipart form fields:
 |---|---|---|
 | `file` | MP4, 10 to 60 s, up to 100 MB | Required. |
 | `input_mode` | `robot`, `sphere`, `focus` | Required. There is no silent default. |
-| `focus` | JSON array of focus points | Required for `focus`, refused otherwise. Same points as `/v1/videos/{id}/analysis`. |
+| `focus` | JSON array of focus points | Required for `focus`, refused otherwise. Same points as `/v1/videos/{id}/analysis`; timestamps must not exceed the imported video duration. |
 | `mood` | `auto` (default), `warm`, `calm`, `sad`, `anger` | An explicit mood overrides the reading and is recorded as such. |
 | `on_ambiguous` | `fail` (default), `best_guess` | What to do when `mood=auto` and the colours do not agree. |
 | `seed` | integer, default 42 | Same input and seed give the same composition. |
@@ -88,7 +88,7 @@ Mood policy. With `mood=auto` the mood comes from a fixed colour-palette rule ov
 
 `result.mood` is always `{used, observed, source}` with `source` one of `observed`, `override`, `best_guess`. `analysis.palette_scores` are relative colour shares from a heuristic rule. **They are not calibrated probabilities**, and the response says so.
 
-Failed jobs stay inspectable. `result.error_code` is one of `sphere_not_reliable` or `ambiguous_mood`, and `error` holds a readable message. Other failures (bad media, timeouts) have an `error` and no code.
+Failed jobs stay inspectable. `result.error_code` is one of `sphere_not_reliable`, `ambiguous_mood`, or `invalid_focus`, and `error` holds a readable message. Focus duration is checked after import, so out-of-duration points produce an asynchronous `invalid_focus` failure. A point exactly at the imported duration is allowed. Other failures (bad media, timeouts) have an `error` and no code. Failed or cancelled automatic imports also mark the source video as failed; a later analysis or generation failure leaves an already imported video ready.
 
 ### Sphere detection output (robot mode)
 
@@ -100,4 +100,4 @@ These exist for failed robot jobs too, so a person can see what was selected bef
 
 Detection metrics are heuristics, not probabilities: `coverage` (share of sampled frames with a sphere), `quality` (mean relative match score, 0 to 1), `ambiguous_fraction` (share of frames where a different region scored almost as well), `jitter` (path roughness in sphere radii) and `uncertainty_index` (0 confident to 1 unreliable, a blend of those). A selection is refused when coverage is below 0.7, quality below 0.35, ambiguous_fraction above 0.35, jitter above 0.12, or the sphere is lost for over two seconds. These limits were set by hand and checked only on the clips listed in `docs/VALIDATION.md`.
 
-Example client: `python scripts/auto_example.py video.mp4 --mode robot`. Retrying a request with the same `Idempotency-Key` and the same file and options returns the original job and discards the duplicate upload; the same key with different input returns 409.
+Example client: `python scripts/auto_example.py video.mp4 --mode robot`. Retrying a request with the same `Idempotency-Key` and the same file and options returns the original job without saving another video. Existing-job lookup and content verification happen before persistent-storage and queue-capacity checks, so matching retries still work at capacity. Multipart request parsing can still use temporary disk space. File type, size and nonempty checks still apply; the same key with different valid input returns 409.

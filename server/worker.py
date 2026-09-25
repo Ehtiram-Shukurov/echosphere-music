@@ -45,6 +45,14 @@ def process(job):
     def stage(text):
         store.update('jobs',id,phase=text)
 
+    def fail_import(message):
+        # Auto soundtrack jobs also import their video. Keep the video and job
+        # states consistent, without invalidating a video after import succeeds.
+        imports_video = kind == 'import' or (kind == 'soundtrack' and job['payload'].get('auto'))
+        current = store.get('videos', video['id'])
+        if imports_video and current and current['state'] in ('queued', 'importing'):
+            store.update('videos', video['id'], state='failed', error=message)
+
     try:
         check()
         source = DATA/'videos'/video['id']
@@ -86,8 +94,7 @@ def process(job):
         store.update('jobs',id,state='complete',phase='Ready',result=result)
     except Cancelled:
         store.update('jobs',id,state='cancelled',phase='Cancelled')
-        if kind == 'import':
-            store.update('videos',video['id'],state='failed',error='Import cancelled.')
+        fail_import('Import cancelled.')
     except auto.AutoFailure as e:
         # An expected, explained refusal: keep the evidence (overlay, scores) with the job.
         store.update('jobs',id,state='failed',phase='Failed',error=str(e)[:1600],result={'error_code':e.code,**e.details})
@@ -97,8 +104,7 @@ def process(job):
         if isinstance(e, __import__('httpx').ConnectError):
             message = 'The selected local model service is not running. See docs/LOCAL_SETUP.md.'
         store.update('jobs',id,state='failed',phase='Failed',error=message[:1600])
-        if kind == 'import':
-            store.update('videos',video['id'],state='failed',error=message[:1600])
+        fail_import(message[:1600])
 
 
 def main():

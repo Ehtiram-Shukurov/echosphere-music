@@ -146,12 +146,37 @@ async def health(request: Request):
             'vision':{'model':OLLAMA_MODEL,'ready':bool(vision and any(m.get('name')==OLLAMA_MODEL for m in vision.get('models',[])))}}
 
 
-async def save_upload(file: UploadFile):
-    """Validate and store an uploaded MP4 under the storage and size limits. Returns (video id, sha256)."""
+def validate_upload(file: UploadFile):
     if not (file.filename or '').lower().endswith('.mp4'):
         raise HTTPException(415,'Choose an MP4 video.')
     if file.size is not None and file.size > MAX_BYTES:
         raise HTTPException(413,'Video must be 100 MB or smaller.')
+
+
+async def upload_digest(file: UploadFile):
+    """Check retry contents without allocating another persistent video folder."""
+    validate_upload(file)
+    digest, size = hashlib.sha256(), 0
+    try:
+        while chunk := await file.read(1024*1024):
+            size += len(chunk)
+            if size > MAX_BYTES:
+                raise HTTPException(413,'Video must be 100 MB or smaller.')
+            digest.update(chunk)
+        if size == 0:
+            raise HTTPException(400,'The uploaded file is empty.')
+        return digest.hexdigest()
+    finally:
+        await file.seek(0)
+
+
+def auto_fingerprint(digest, options):
+    return hashlib.sha256(json.dumps({'video':digest,'options':options},sort_keys=True).encode()).hexdigest()
+
+
+async def save_upload(file: UploadFile):
+    """Validate and store an uploaded MP4 under the storage and size limits. Returns (video id, sha256)."""
+    validate_upload(file)
     if shutil.disk_usage(DATA).free < 512*1024*1024:
         raise HTTPException(507,'Free at least 512 MB of local disk space before importing.')
     if not retention.has_room(MAX_BYTES):
@@ -215,20 +240,20 @@ async def create_auto_soundtrack(file: UploadFile = File(...), input_mode: str =
         raise HTTPException(422,'; '.join((f"{'.'.join(map(str,x['loc']))}: " if x['loc'] else '')+x['msg'] for x in e.errors())) from e
     id = None
     try:
-        id, digest = await save_upload(file)
-        # Retrying with the same key and the same input returns the original job instead of a duplicate.
-        fingerprint = hashlib.sha256(json.dumps({'video':digest,'options':options},sort_keys=True).encode()).hexdigest()
+        # Resolve a retry before capacity checks: it needs no new queue slot or
+        # persistent upload, even when the first request filled the storage quota.
         if idempotency_key:
             if len(idempotency_key) > 128:
                 raise HTTPException(400,'Idempotency-Key must be at most 128 characters.')
             with store.connect() as db:
                 old = store.decode(db.execute('SELECT * FROM jobs WHERE idempotency=?',(idempotency_key,)).fetchone())
             if old:
+                fingerprint = auto_fingerprint(await upload_digest(file), options)
                 if old['payload'].get('fingerprint') != fingerprint:
                     raise HTTPException(409,'This idempotency key was already used for different input.')
-                discard_video(id)
-                id = None
                 return {'id':old['id'],'video_id':old['video_id'],'state':old['state'],'status_url':f'/v1/soundtracks/{old["id"]}'}
+        id, digest = await save_upload(file)
+        fingerprint = auto_fingerprint(digest, options)
         job = queue(id,'soundtrack',{'auto':True,'options':options,'fingerprint':fingerprint},idempotency_key)
         return {'id':job['id'],'video_id':id,'state':'queued','status_url':f'/v1/soundtracks/{job["id"]}'}
     except BaseException:

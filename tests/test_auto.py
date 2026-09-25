@@ -124,6 +124,7 @@ def test_ambiguity_fails_by_default(api, tmp_path):
     assert done['state'] == 'failed', done['result']['mood']
     assert done['result']['error_code'] == 'ambiguous_mood'
     assert 'palette_scores_note' in done['result']['analysis'] and done['result']['analysis']['mood'] is None
+    assert store.get('videos', done['video_id'])['state'] == 'ready'  # a later refusal must not invalidate the import
 
 
 def test_best_guess_is_opt_in_and_reported(api, tmp_path):
@@ -193,3 +194,95 @@ def test_auto_endpoint_requires_the_key_and_shares_the_queue_limit(tmp_path, mon
             full = client.post('/v1/soundtracks/auto', files={'file': ('c.mp4', f, 'video/mp4')}, data={'input_mode': 'robot'}, headers=headers)
         assert full.status_code == 409 and 'queue is full' in full.json()['detail']
         assert len(client.get('/v1/videos', headers=headers).json()) == 1      # the refused upload left nothing behind
+
+
+def test_auto_invalid_media_marks_video_and_job_failed(api):
+    client, store, worker, *_ = api
+    response = client.post('/v1/soundtracks/auto', files={'file': ('bad.mp4', b'not a video')},
+                           data={'input_mode': 'sphere'})
+    assert response.status_code == 202
+    done = status(client, run(store, worker))
+    video = store.get('videos', response.json()['video_id'])
+    assert done['state'] == video['state'] == 'failed'
+    assert video['error'] == done['error'] and video['error']
+
+
+def test_auto_cancel_during_import_marks_video_failed(api, monkeypatch):
+    client, store, worker, *_ = api
+    response = client.post('/v1/soundtracks/auto', files={'file': ('clip.mp4', b'input')},
+                           data={'input_mode': 'sphere'})
+    body = response.json()
+
+    def cancel_import(source, folder, check):
+        assert store.get('videos', body['video_id'])['state'] == 'importing'
+        store.update('jobs', body['id'], cancelled=1)
+        check()
+        pytest.fail('Cancellation was not observed')
+
+    monkeypatch.setattr(worker.media, 'prepare_video', cancel_import)
+    done = status(client, run(store, worker))
+    video = store.get('videos', body['video_id'])
+    assert done['state'] == 'cancelled'
+    assert video['state'] == 'failed' and video['error'] == 'Import cancelled.'
+
+
+@pytest.mark.parametrize('last_time', [10, 11])
+def test_auto_focus_checks_imported_video_duration(api, tmp_path, last_time):
+    client, store, worker, *_ = api
+    clip = tmp_path / 'flat.mp4'
+    make_flat_video(clip)
+    point = {'time': 0, 'cx': .5, 'cy': .5, 'rx': .4, 'ry': .4}
+    focus = [point, {**point, 'time': last_time}]
+    response = submit(client, clip, input_mode='focus', focus=json.dumps(focus))
+    assert response.status_code == 202
+    done = status(client, run(store, worker))
+    if last_time > 10:
+        assert done['state'] == 'failed'
+        assert done['result']['error_code'] == 'invalid_focus'
+        assert done['result']['duration'] == 10
+        assert store.get('videos', done['video_id'])['analysis'] is None
+    else:
+        assert done['state'] == 'complete', done.get('error')
+    assert store.get('videos', done['video_id'])['state'] == 'ready'
+
+
+def test_auto_retry_at_full_storage_and_queue_reuses_existing_job(api, monkeypatch):
+    client, store, _, config, retention = api
+    monkeypatch.setattr(store, 'MAX_QUEUE', 1)
+    headers = {'Idempotency-Key': 'full-capacity-retry'}
+    fields = {'input_mode': 'sphere'}
+    content = b'queued upload; media validation happens in the worker'
+
+    def post(data=content, options=fields, key=headers):
+        return client.post('/v1/soundtracks/auto', files={'file': ('clip.mp4', data)}, data=options, headers=key)
+
+    first = post()
+    assert first.status_code == 202
+    used = retention.usage_bytes()
+    monkeypatch.setattr(retention, 'MAX_STORAGE_BYTES', used)
+    assert not retention.has_room(1)
+    retry = post()
+    assert retry.status_code == 202 and retry.json() == first.json()
+    assert post(options={'input_mode': 'robot'}).status_code == 409  # changed options still conflict at capacity
+    assert post(data=content + b'different').status_code == 409     # so do changed video bytes
+    assert post(key={'Idempotency-Key': 'new-work'}).status_code == 507
+    assert retention.usage_bytes() == used
+    assert len(list((config.DATA / 'videos').iterdir())) == 1
+    with store.connect() as db:
+        assert db.execute('SELECT COUNT(*) FROM jobs').fetchone()[0] == 1
+
+
+def test_auto_retry_still_validates_upload_size_and_type(api, monkeypatch):
+    client, _, _, _, _ = api
+    from server import app
+    headers = {'Idempotency-Key': 'bounded-retry'}
+
+    def post(name, content):
+        return client.post('/v1/soundtracks/auto', files={'file': (name, content)},
+                           data={'input_mode': 'sphere'}, headers=headers)
+
+    assert post('clip.mp4', b'input').status_code == 202
+    monkeypatch.setattr(app, 'MAX_BYTES', 10)
+    assert post('clip.mp4', b'x' * 11).status_code == 413
+    assert post('clip.mp4', b'').status_code == 400
+    assert post('clip.txt', b'input').status_code == 415

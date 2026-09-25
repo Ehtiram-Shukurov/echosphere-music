@@ -80,3 +80,15 @@ The four stills are static images turned into video with FFmpeg, on a black back
 - **Speed and memory on the hosted server.** Times above are from a Windows laptop.
 - **The new endpoint on the deployed server, behind Caddy.** Not deployed.
 - **Music quality.** Unchanged from the existing composer and not part of this work.
+
+### API review fixes — September 25, 2026
+
+The three review issues on commit `058890e` are fixed:
+
+- Automatic import failures and cancellations update the source video to `failed`, with an error. Failures after a successful import keep the video `ready`.
+- Caller-supplied focus timestamps are checked against the normalized video's actual duration before analysis. Out-of-range points fail the job with `invalid_focus`; a point exactly at the endpoint remains valid.
+- Matching idempotent retries reuse the saved job before persistent-storage and queue-capacity checks. Changed file contents or options still conflict, and file size/type/nonempty checks still apply. New uploads remain subject to the quota.
+
+Independent verification in the review workspace: **35 tests passed** on Linux/Python 3.12.14, using the pinned requirements, Playwright 1.51.0 Chromium headless shell and system FFmpeg. The suite includes real audio composition and video export. Six new regression cases cover invalid media, cancellation during import, both focus-duration boundaries, retries at full storage/queue capacity, and retry upload validation. The four bug-focused cases fail against the original code. One existing Starlette/httpx test-client deprecation warning remains.
+
+This verifies API behavior, not detector generalization, Calm/Sad accuracy, Windows deployment, or Oracle-hosted performance. These fixes have not been deployed.

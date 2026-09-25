@@ -83,6 +83,9 @@ def prepare(job, stage, check):
         focus = [{'time': 0, 'cx': .5, 'cy': .5, 'rx': .49, 'ry': .49}]        # the whole frame is the sphere interior
     else:
         focus = options['focus']
+        if focus[-1]['time'] > video['metadata']['duration']:
+            raise AutoFailure('invalid_focus', 'A focus point is outside the video duration.',
+                              {'input_mode': mode, 'duration': video['metadata']['duration']})
     check()
     stage('Reading the selected sphere')
     result = analysis.analyze(source / 'preview.mp4', DATA / 'jobs' / id, {'focus': focus, 'analyzer': 'measurements'}, check)
