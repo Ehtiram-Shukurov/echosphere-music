@@ -57,3 +57,47 @@ Browser-independent example:
 Use the bundled focus JSON only for the supplied demo. The script uploads, polls, analyzes, generates and downloads WAV/MP4 plus metadata. To exercise both model services, pass `--analyzer qwen --engine ace` after installing them.
 
 Files and SQLite are local in this version. No API secrets belong in the static website. A future cloud adapter can preserve the user-facing workflow, but authentication, durable hosted storage and provider quotas still need implementation and deployment tests.
+
+## Automatic upload-to-soundtrack: `POST /v1/soundtracks/auto`
+
+One request uploads a video and queues a single job that imports it, finds or accepts the sphere, reads its colour and motion, chooses the mood, composes with the existing instrument composer, finishes the audio and muxes the video. It returns **immediately** with a job ID; nothing heavy happens in the request. It uses the same sign-in, queue limit, storage quota, retention cleanup and idempotency handling as the other routes.
+
+Multipart form fields:
+
+| Field | Values | Meaning |
+|---|---|---|
+| `file` | MP4, 10 to 60 s, up to 100 MB | Required. |
+| `input_mode` | `robot`, `sphere`, `focus` | Required. There is no silent default. |
+| `focus` | JSON array of focus points | Required for `focus`, refused otherwise. Same points as `/v1/videos/{id}/analysis`. |
+| `mood` | `auto` (default), `warm`, `calm`, `sad`, `anger` | An explicit mood overrides the reading and is recorded as such. |
+| `on_ambiguous` | `fail` (default), `best_guess` | What to do when `mood=auto` and the colours do not agree. |
+| `seed` | integer, default 42 | Same input and seed give the same composition. |
+
+Input modes:
+
+- **`robot`**: full footage of the robot. The sphere is found and tracked automatically (CPU only, no model, no cost). If the selection is unreliable the job fails with `sphere_not_reliable` instead of guessing.
+- **`sphere`**: a video that already shows only the sphere. The whole frame is read.
+- **`focus`**: the caller supplies focus coordinates (the same as manual selection in the web page). Manual selection through the page and `/v1/videos/{id}/analysis` is unchanged.
+
+Response (202): `{"id": "<job id>", "video_id": "...", "state": "queued", "status_url": "/v1/soundtracks/<id>"}`. Poll `GET /v1/soundtracks/{id}`. It reports `state`, a human `phase`, and machine-readable `stages`, in order: `queued`, `importing`, `detecting` (robot mode only), `analyzing`, `deciding`, `composing`, `finishing`, `muxing`, each `done`, `active` or `pending`. Download with the existing `/audio`, `/video`, `/preview` and `/metadata` routes.
+
+Mood policy. With `mood=auto` the mood comes from a fixed colour-palette rule over the selected sphere interior. If the top two moods are too close (or too weak), the reading is **ambiguous**:
+
+- `on_ambiguous=fail` (default): the job fails with `result.error_code = "ambiguous_mood"` and the analysis attached, so the caller can retry with an explicit `mood`.
+- `on_ambiguous=best_guess`: the job continues with the highest colour share. The result records `mood.source = "best_guess"`, `mood.observed = null`, and a warning in `brief.warnings`.
+
+`result.mood` is always `{used, observed, source}` with `source` one of `observed`, `override`, `best_guess`. `analysis.palette_scores` are relative colour shares from a heuristic rule. **They are not calibrated probabilities**, and the response says so.
+
+Failed jobs stay inspectable. `result.error_code` is one of `sphere_not_reliable` or `ambiguous_mood`, and `error` holds a readable message. Other failures (bad media, timeouts) have an `error` and no code.
+
+### Sphere detection output (robot mode)
+
+- `GET /v1/videos/{video_id}/detection`: the full JSON report (status, reasons, metrics, chosen focus points, per-sample track).
+- `GET /v1/videos/{video_id}/detection/overlay`: an MP4 of the clip with the selection drawn on it. Green ellipse: the region that will be analysed. Yellow circle: the tracked sphere. A red `REJECTED` label appears when the selection was refused.
+- `GET /v1/videos/{video_id}/detection/sheet`: a JPEG contact sheet of eight frames.
+
+These exist for failed robot jobs too, so a person can see what was selected before trusting or rejecting it. They are deleted with the video.
+
+Detection metrics are heuristics, not probabilities: `coverage` (share of sampled frames with a sphere), `quality` (mean relative match score, 0 to 1), `ambiguous_fraction` (share of frames where a different region scored almost as well), `jitter` (path roughness in sphere radii) and `uncertainty_index` (0 confident to 1 unreliable, a blend of those). A selection is refused when coverage is below 0.7, quality below 0.35, ambiguous_fraction above 0.35, jitter above 0.12, or the sphere is lost for over two seconds. These limits were set by hand and checked only on the clips listed in `docs/VALIDATION.md`.
+
+Example client: `python scripts/auto_example.py video.mp4 --mode robot`. Retrying a request with the same `Idempotency-Key` and the same file and options returns the original job and discards the duplicate upload; the same key with different input returns 409.

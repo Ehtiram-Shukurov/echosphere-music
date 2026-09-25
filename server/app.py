@@ -7,13 +7,14 @@ import uuid
 from contextlib import asynccontextmanager
 from urllib.parse import urlparse
 import httpx
-from fastapi import FastAPI, File, Header, HTTPException, Request, UploadFile
+from fastapi import FastAPI, File, Form, Header, HTTPException, Request, UploadFile
+from pydantic import ValidationError
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from . import auth, retention, store
+from . import auth, auto, retention, store
 from .analysis import musical_brief
 from .config import DATA, ROOT, MAX_BYTES, OLLAMA_URL, OLLAMA_MODEL, ACE_URL, ACE_KEY, ALLOWED_HOSTS
-from .models import AnalysisRequest, SoundtrackRequest
+from .models import AnalysisRequest, AutoOptions, SoundtrackRequest
 
 
 @asynccontextmanager
@@ -101,6 +102,13 @@ def public_job(job):
     if row['kind']=='analysis' and row.get('result'):
         for f in row['result']['evidence']:
             f['url'] = f'/v1/jobs/{row["id"]}/frames/{f["file"]}'
+    if row['kind']=='soundtrack' and row['payload'].get('auto'):
+        row['stages'] = auto.stage_progress(row)
+        row['options'] = row['payload']['options']
+        for f in ((row.get('result') or {}).get('analysis') or {}).get('evidence',[]):
+            f['url'] = f'/v1/jobs/{row["id"]}/frames/{f["file"]}'
+        row['detection_url'] = f'/v1/videos/{row["video_id"]}/detection' if row['options']['input_mode']=='robot' else None
+        row.pop('payload')
     return row
 
 
@@ -138,8 +146,8 @@ async def health(request: Request):
             'vision':{'model':OLLAMA_MODEL,'ready':bool(vision and any(m.get('name')==OLLAMA_MODEL for m in vision.get('models',[])))}}
 
 
-@app.post('/v1/videos',status_code=202)
-async def upload_video(file: UploadFile = File(...)):
+async def save_upload(file: UploadFile):
+    """Validate and store an uploaded MP4 under the storage and size limits. Returns (video id, sha256)."""
     if not (file.filename or '').lower().endswith('.mp4'):
         raise HTTPException(415,'Choose an MP4 video.')
     if file.size is not None and file.size > MAX_BYTES:
@@ -166,12 +174,66 @@ async def upload_video(file: UploadFile = File(...)):
         with store.connect() as db:
             db.execute('INSERT INTO videos (id,name,hash,state,created) VALUES (?,?,?,?,?)',
                        (id,(file.filename or 'video.mp4')[:200],digest.hexdigest(),'queued',time.time()))
+    except BaseException:
+        shutil.rmtree(folder,ignore_errors=True)
+        raise
+    return id, digest.hexdigest()
+
+
+def discard_video(id):
+    with store.connect() as db:
+        db.execute('DELETE FROM videos WHERE id=?',(id,))
+    shutil.rmtree(DATA/'videos'/id,ignore_errors=True)
+
+
+@app.post('/v1/videos',status_code=202)
+async def upload_video(file: UploadFile = File(...)):
+    id = None
+    try:
+        id, _ = await save_upload(file)
         job = queue(id,'import',{})
         return {'id':id,'job_id':job['id'],'state':'queued'}
     except BaseException:
-        with store.connect() as db:
-            db.execute('DELETE FROM videos WHERE id=?',(id,))
-        shutil.rmtree(folder,ignore_errors=True)
+        if id:
+            discard_video(id)
+        raise
+    finally:
+        await file.close()
+
+
+@app.post('/v1/soundtracks/auto',status_code=202)
+async def create_auto_soundtrack(file: UploadFile = File(...), input_mode: str = Form(...), mood: str = Form('auto'),
+                                 on_ambiguous: str = Form('fail'), seed: int = Form(42), focus: str|None = Form(None),
+                                 idempotency_key: str|None = Header(default=None)):
+    """Upload a video and get a soundtrack in one queued job. Returns immediately with a job ID to poll."""
+    try:
+        options = AutoOptions(input_mode=input_mode,mood=mood,on_ambiguous=on_ambiguous,seed=seed,
+                              focus=json.loads(focus) if focus else None).model_dump()
+    except json.JSONDecodeError as e:
+        raise HTTPException(422,'focus must be a JSON array of focus points.') from e
+    except ValidationError as e:
+        raise HTTPException(422,'; '.join((f"{'.'.join(map(str,x['loc']))}: " if x['loc'] else '')+x['msg'] for x in e.errors())) from e
+    id = None
+    try:
+        id, digest = await save_upload(file)
+        # Retrying with the same key and the same input returns the original job instead of a duplicate.
+        fingerprint = hashlib.sha256(json.dumps({'video':digest,'options':options},sort_keys=True).encode()).hexdigest()
+        if idempotency_key:
+            if len(idempotency_key) > 128:
+                raise HTTPException(400,'Idempotency-Key must be at most 128 characters.')
+            with store.connect() as db:
+                old = store.decode(db.execute('SELECT * FROM jobs WHERE idempotency=?',(idempotency_key,)).fetchone())
+            if old:
+                if old['payload'].get('fingerprint') != fingerprint:
+                    raise HTTPException(409,'This idempotency key was already used for different input.')
+                discard_video(id)
+                id = None
+                return {'id':old['id'],'video_id':old['video_id'],'state':old['state'],'status_url':f'/v1/soundtracks/{old["id"]}'}
+        job = queue(id,'soundtrack',{'auto':True,'options':options,'fingerprint':fingerprint},idempotency_key)
+        return {'id':job['id'],'video_id':id,'state':'queued','status_url':f'/v1/soundtracks/{job["id"]}'}
+    except BaseException:
+        if id:
+            discard_video(id)
         raise
     finally:
         await file.close()
@@ -211,6 +273,29 @@ def preview_webm(id: str):
     if row['state']!='ready':
         raise HTTPException(409,'Video is not ready.')
     return FileResponse(DATA/'videos'/id/'preview.webm',media_type='video/webm')
+
+
+def detection_file(id, name):
+    require('videos',id)
+    path = DATA/'videos'/id/'detection'/name
+    if not path.is_file():
+        raise HTTPException(404,'No sphere detection was run for this video.')
+    return path
+
+
+@app.get('/v1/videos/{id}/detection')
+def detection_report(id: str):
+    return FileResponse(detection_file(id,'detection.json'),media_type='application/json')
+
+
+@app.get('/v1/videos/{id}/detection/overlay')
+def detection_overlay(id: str):
+    return FileResponse(detection_file(id,'detection-overlay.mp4'),media_type='video/mp4')
+
+
+@app.get('/v1/videos/{id}/detection/sheet')
+def detection_sheet(id: str):
+    return FileResponse(detection_file(id,'detection-sheet.jpg'),media_type='image/jpeg')
 
 
 @app.post('/v1/videos/{id}/analysis',status_code=202)
@@ -257,7 +342,7 @@ def soundtrack(id: str):
 @app.get('/v1/jobs/{id}/frames/{name}')
 def frame(id: str, name: str):
     row = require('jobs',id)
-    if row['state']!='complete' or row['kind']!='analysis' or not re.fullmatch(r'frame-\d{2}\.jpg',name):
+    if row['state'] not in ('complete','failed') or row['kind'] not in ('analysis','soundtrack') or not re.fullmatch(r'frame-\d{2}\.jpg',name):
         raise HTTPException(404,'Frame unavailable.')
     path = DATA/'jobs'/id/name
     if not path.is_file():

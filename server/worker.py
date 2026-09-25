@@ -4,7 +4,7 @@ import logging
 import threading
 import time
 from contextlib import contextmanager
-from . import store, media, analysis, engines, retention
+from . import store, media, analysis, engines, retention, auto
 from .config import DATA
 
 log = logging.getLogger(__name__)
@@ -64,17 +64,21 @@ def process(job):
             check()
             store.update('videos',video['id'],analysis=result)
         elif kind == 'soundtrack':
-            brief = job['payload']['brief']
-            if job['payload']['engine']=='ace':
+            if job['payload'].get('auto'):
+                brief, extra = auto.prepare(job, stage, check)
+                engine = job['payload']['options']['engine']
+            else:
+                brief, extra, engine = job['payload']['brief'], {}, job['payload']['engine']
+            if engine=='ace':
                 engines.ensure_ace_idle()
-            stage('Composing with instrument samples' if job['payload']['engine']=='composer' else 'Generating with ACE-Step')
-            provenance = engines.composer(brief,folder,check) if job['payload']['engine']=='composer' else engines.ace(brief,folder,check,stage)
+            stage('Composing with instrument samples' if engine=='composer' else 'Generating with ACE-Step')
+            provenance = engines.composer(brief,folder,check) if engine=='composer' else engines.ace(brief,folder,check,stage)
             check()
             stage('Finishing audio')
             stats = media.finish_audio(folder/'raw.wav',folder,brief['duration'],check)
             stage('Combining video and music')
             media.mux(source/'preview.mp4',folder/'soundtrack.wav',folder,check)
-            result = {'brief':brief,'audio':stats,'provenance':provenance}
+            result = {'brief':brief,'audio':stats,'provenance':provenance,**extra}
             (folder/'result.json').write_text(json.dumps(result,indent=2),encoding='utf-8')
         else:
             raise RuntimeError('Unknown job kind.')
@@ -84,6 +88,9 @@ def process(job):
         store.update('jobs',id,state='cancelled',phase='Cancelled')
         if kind == 'import':
             store.update('videos',video['id'],state='failed',error='Import cancelled.')
+    except auto.AutoFailure as e:
+        # An expected, explained refusal: keep the evidence (overlay, scores) with the job.
+        store.update('jobs',id,state='failed',phase='Failed',error=str(e)[:1600],result={'error_code':e.code,**e.details})
     except Exception as e:
         log.exception('Job %s failed',id)
         message = str(e)

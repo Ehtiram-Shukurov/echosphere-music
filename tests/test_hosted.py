@@ -15,8 +15,8 @@ def load(monkeypatch, tmp_path, **env):
         monkeypatch.delenv(name, raising=False)
     for name, value in env.items():
         monkeypatch.setenv(name, value)
-    from server import config, auth, store, retention, media, analysis, engines, worker, app
-    for module in (config, auth, store, retention, media, analysis, engines, worker, app):
+    from server import config, auth, store, retention, media, analysis, detect, auto, engines, worker, app
+    for module in (config, auth, store, retention, media, analysis, detect, auto, engines, worker, app):
         importlib.reload(module)
     return config, auth, store, retention, app
 
