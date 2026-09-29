@@ -92,3 +92,55 @@ The three review issues on commit `058890e` are fixed:
 Independent verification in the review workspace: **35 tests passed** on Linux/Python 3.12.14, using the pinned requirements, Playwright 1.51.0 Chromium headless shell and system FFmpeg. The suite includes real audio composition and video export. Six new regression cases cover invalid media, cancellation during import, both focus-duration boundaries, retries at full storage/queue capacity, and retry upload validation. The four bug-focused cases fail against the original code. One existing Starlette/httpx test-client deprecation warning remains.
 
 This verifies API behavior, not detector generalization, Calm/Sad accuracy, or Oracle-hosted performance. These fixes are merged and deployed; their behaviour on the Oracle server was not separately measured.
+
+## Music library (branch `feature/music-library`)
+
+Recorded September 28, 2026. The default music for `POST /v1/soundtracks/auto` is now a recorded track picked from `music-library/<mood>/` (the instrument composer remains available with `engine=composer`). Design and how to use it: `docs/MUSIC_LIBRARY.md`.
+
+### What was checked on the 80 supplied tracks
+
+- **Licence evidence.** 79 of 80 files carry the embedded artist tag "Kevin MacLeod" (most also name incompetech.com). The terms were read from incompetech.com's own FAQ on this date: **CC BY 4.0, commercial use allowed, credit required, changes must be stated**. This is inferred from the tag, not proven for each file; it assumes the files came from incompetech.com. One file (`warm/Egmont Overture.mp3`) has no tags at all, so its source is unconfirmed and it is excluded.
+- **Duplicates.** Three byte-identical pairs (SHA-256). Two of them (`Midsummer Sky`, `Sapphire Isle`) were filed under both Warm and Calm, which contradicts itself; the third (`The Whip Theme`) was a copy inside Anger. Both cross-folder pairs are held until a mood is chosen.
+- **Length.** 39 s to 12 min (average about 3 min); five tracks are shorter than 60 s. The picker prefers tracks long enough for the video and loops only as a last resort, with a warning.
+- **Loudness.** The first minute of the tracks spans roughly -40 to -9 LUFS (up to about 30 dB between the quietest and loudest track; the folder medians differ by only about 6 dB). Each excerpt is therefore levelled to -20 LUFS (boost capped at +18 dB, cut at 12 dB, with a warning when a limit applies).
+
+### How well audio measurements agree with your folders (an honest limit)
+
+Tempo, loudness, brightness, note density and major/minor lean were measured on the first 60 s of each unique track (77 files) and compared with the folder each was filed in, two ways: a nearest-average classifier scored leave-one-out, and a valence/arousal quadrant rule that uses no labels.
+
+| Method | Agrees with the folder | Chance |
+|---|---|---|
+| Nearest average of the folders (leave-one-out) | 49% | 25% |
+| Quadrant rule (no labels) | 56% | 25% |
+
+Anger was identified well (14 of 19 by each method). Warm, Calm and Sad were confused with each other, and 8 of the 20 Warm tracks measured like Anger by the nearest-average method (loud, bright, busy). These measurements cannot hear "sad" versus "calm". They are used only to hold back a track when **both** methods name the **same other** mood: 16 tracks, plus the duplicates. **Everything else is "ok" meaning no contradiction was measured, not that a person listened.** With the holds applied, 58 tracks are usable (Warm 10, Calm 14, Sad 16, Anger 18). This is a small sample (20 per folder) and the folder labels themselves are unverified, so treat the percentages as indicative.
+
+### End to end with the real library
+
+Real local server, no key, your library, `engine` left at its default:
+
+| Input | Mood read | Track played | Time |
+|---|---|---|---|
+| Demo video (robot mode) | Warm | Inner Light (a 576 s track, -7.2 dB) | 21.5 s |
+| Warm still as a 10 s video | Warm | Pennsylvania Rose (+8.1 dB) | 25.5 s |
+| Sad still | Sad | Lasting Hope (-2.0 dB) | 16.4 s |
+| Anger still | Anger | The Cannery (-5.5 dB) | 20.5 s |
+
+For all four the exported WAV is exactly 10.00 s, measures -20.2 to -20.6 LUFS with true peak at most -4.5 dBTP, the MP4 has one H.264 video and one AAC audio stream (the source video's own audio is not used), and the track's credit is present in the metadata of both the WAV and the MP4. The Calm still was not run: it fails as ambiguous unless a mood is given, as before. Direct renders of 10 s and 60 s excerpts for every mood (12 renders) all came out at -20.0 LUFS at the right length.
+
+### Bugs found while building this
+
+- The automatic endpoint had no `engine` field, so a request for `engine=composer` was silently ignored and a library track played. It now accepts and validates `engine` (anything other than `library` or `composer` is a 422).
+- A test tone about 32 dB too quiet exposed that a level correction beyond the boost cap happened silently. It now adds a warning to the result.
+
+### Tests
+
+New: `tests/test_library.py` (picker, cutting, levelling, credits in metadata, looping, empty mood, manifest path safety, missing manifest, boost cap warning) and `tests/test_music_manifest.py` (duplicates, conflicts, unknown source, your decisions, extra licence terms, the generated files). `tests/test_auto.py` gained tests for the library default and its credit in the exported files, up-front refusal when the library cannot serve a request, `engine=composer`, and a mood that becomes empty after a job was accepted.
+
+### Not validated
+
+- **Whether any track actually fits its mood.** Nobody has listened to the 58 usable tracks against the sphere; automatic checks cannot judge that. `review.html` exists to make this quick.
+- **Detection on more real footage** (unchanged from the earlier section).
+- **The Oracle demo server.** It does not have the audio (not in Git) and runs older code; `engine=library` would be refused there.
+- **How the level correction and fades sound** on real videos, and the seam where a track had to loop (no such case occurred with this library for videos up to 60 s, except tracks shorter than the video, which the picker avoids).
+- **Credits in the product.** The files carry them and `CREDITS.md` lists them, but showing them in the final product is a manual step.

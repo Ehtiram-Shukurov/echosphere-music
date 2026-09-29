@@ -1,6 +1,7 @@
 .git
 .venv
 data
+music-library
 test-results
 tests
 docs

@@ -138,8 +138,8 @@ function showResult(job){
   preview.pause();preview.src=API+(mp4Supported?job.video_url:job.preview_url);
   $('resultPanel').hidden=false;$('audioDownload').href=API+job.audio_url;$('videoDownload').href=API+job.video_url;
   $('metadataDownload').href=API+'/v1/soundtracks/'+job.id+'/metadata';$('metadataDownload').hidden=false;
-  const b=job.result.brief,engine=job.result.provenance.engine==='composer'?'Instrument composer':'ACE-Step';
-  $('resultMeta').textContent=`${engine} · ${b.mood} · ${b.duration.toFixed(2)} s · seed ${b.requested_seed}. Preview and downloads use this saved take; MP4 audio is AAC-encoded.`;
+  const b=job.result.brief,prov=job.result.provenance,engine=({composer:'Instrument composer',ace:'ACE-Step',library:'Music library'})[prov.engine]||prov.engine;
+  $('resultMeta').textContent=`${engine} · ${b.mood} · ${b.duration.toFixed(2)} s · seed ${b.requested_seed}. ${prov.track?`Music: ${prov.track.credit}. ${prov.track.edit_note} `:''}Preview and downloads use this saved take; MP4 audio is AAC-encoded.`;
   $('soundMeta').textContent=b.mood+' · '+b.duration.toFixed(1)+' seconds';theme(b.mood);$('variations').value=job.id;
 }
 function renderResults(){
@@ -215,10 +215,11 @@ async function start(){
     const h=await api('/health',{signal:AbortSignal.timeout(8000)});$('connection').textContent=h.worker_online?'Server connected':'Worker not running';
     if(!h.worker_online)message('Start the worker with python -m server.worker, or use python run_local.py.',true);
     else if(!h.ffmpeg)message('Install FFmpeg and ffprobe before importing a video.',true);
+    $('engine').querySelector('[value="library"]').disabled=!h.engines.library;
     $('engine').querySelector('[value="composer"]').disabled=!h.engines.composer;
     $('engine').querySelector('[value="ace"]').disabled=!h.engines.ace;
     $('analyzer').querySelector('[value="qwen"]').disabled=!h.vision.ready;
-    if(!h.engines.composer&&h.engines.ace)$('engine').value='ace';
+    $('engine').value=h.engines.library?'library':h.engines.composer?'composer':h.engines.ace?'ace':'library';
     await saved();
   }catch{$('connection').textContent='Local server needed';message('Start the local app with python run_local.py and open http://127.0.0.1:8765. This page needs the processing server.',true);}
   busy(false);

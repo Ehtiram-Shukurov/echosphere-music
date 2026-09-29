@@ -61,8 +61,8 @@
       </section>
       <details class="settings"><summary>Generation settings &amp; saved videos</summary>
         <label>Read the sphere with <select id="analyzer"><option value="measurements">Color &amp; motion measurements</option><option value="qwen">Qwen vision (requires local model)</option></select></label>
-        <label>Make the music with <select id="engine"><option value="composer">EchoSphere instrument composer</option><option value="ace">ACE-Step (requires local model)</option></select></label>
-        <p class="helper">The composer is the existing sample-based engine with a video arrangement. AI-model quality still needs testing on your computer. An unavailable model produces an error; it never silently switches engines.</p>
+        <label>Make the music with <select id="engine"><option value="library">Music library (recorded tracks)</option><option value="composer">EchoSphere instrument composer</option><option value="ace">ACE-Step (requires local model)</option></select></label>
+        <p class="helper">The music library picks a recorded, licensed track for the mood and fits it to the video; its credit is shown with the result. The composer is the sample-based engine with a video arrangement. AI-model quality still needs testing on your computer. An unavailable model produces an error; it never silently switches engines.</p>
         <label>Saved videos <select id="savedVideos"><option value="">Choose a video…</option></select></label>
         <button id="deleteVideo" class="secondary-button" disabled>Delete video &amp; its results</button>
         <a id="metadataDownload" hidden>Download generation details</a>
@@ -72,6 +72,7 @@
   <footer class="footer"><span>EchoSphere Music · local preview</span><button id="creditsButton">Credits &amp; about</button></footer>
 </div>
 <dialog id="creditsDialog" aria-labelledby="creditsTitle"><div class="dialog-head"><h2 id="creditsTitle">Made of sound.</h2><button id="closeCredits" class="icon-button" aria-label="Close credits">×</button></div>
+<p>Recorded tracks come from the music library: Kevin MacLeod (incompetech.com), licensed under <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>. Each result shows its track\u2019s credit and the full list is in music-library/CREDITS.md. Tracks are shortened and faded to fit the video.</p>
 <p>Visual analysis uses only your selected sphere interior. The source video’s audio is excluded. Generated music is processed by the selected local engine.</p>
 <h3>Instrument recordings</h3><p><a href="https://github.com/nbrosowsky/tonejs-instruments">tonejs-instruments — Nathaniel Brosowsky</a>, <a href="https://creativecommons.org/licenses/by/3.0/">CC BY 3.0</a>. Piano and violin: VSCO 2 Community Edition, Versilian Studios. Cello: flcellogrl, Freesound. Electric guitar: Karoryfer. Recordings are sequenced, pitch shifted, enveloped and mixed.</p>
 <p>The original standalone music playground remains in index.html. Local setup and API instructions are in the repository’s docs folder.</p></dialog>

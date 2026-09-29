@@ -37,7 +37,7 @@ class AnalysisRequest(StrictModel):
 class SoundtrackRequest(StrictModel):
     video_id: str = Field(pattern=r'^[0-9a-f]{32}$')
     mood: Literal['auto', 'warm', 'calm', 'sad', 'anger'] = 'auto'
-    engine: Literal['composer', 'ace'] = 'composer'
+    engine: Literal['composer', 'ace', 'library'] = 'composer'
     seed: int = Field(default=42, ge=0, le=4294967295)
 
 
@@ -46,7 +46,7 @@ class AutoOptions(StrictModel):
     input_mode: Literal['robot', 'sphere', 'focus']
     mood: Literal['auto', 'warm', 'calm', 'sad', 'anger'] = 'auto'
     on_ambiguous: Literal['fail', 'best_guess'] = 'fail'
-    engine: Literal['composer'] = 'composer'
+    engine: Literal['library', 'composer'] = 'library'
     seed: int = Field(default=42, ge=0, le=4294967295)
     focus: list[FocusPoint] | None = Field(default=None, min_length=1, max_length=16)
 

@@ -309,7 +309,27 @@ The site is down for a few minutes while it rebuilds. To roll back, check out th
 
 ---
 
-## 12. Words used in this guide
+## 12. Update: the music now comes from a library of recorded tracks
+
+*Added after the team asked to drop the music-generation part: "collect music, label it warm/calm/sad/anger, and when the sphere is analysed, give a track from those folders".*
+
+**What changed.** The sphere-reading half is unchanged. The last step, which used to compose music, now **picks a real recorded track** from `music-library/<mood>/`, cuts it to the video's length, levels its volume and fades it. This is the default for `POST /v1/soundtracks/auto`; `engine=composer` still works.
+
+**What is in the library now.** 80 tracks, 20 per folder, all by Kevin MacLeod (incompetech.com). Their licence, **CC BY 4.0, allows commercial use but requires the credit** wherever the music is used. Every exported file carries its credit, the result page shows it, and `music-library/CREDITS.md` lists them all. **The product itself must show those credits.**
+
+**What the automatic check found.**
+- 3 files were duplicates (2 of them filed under two different moods), and 1 file had no source information, so those are held out.
+- Measured tempo, loudness and brightness agree with your folders only about half the time. They are good at spotting a loud, busy track filed as calm, and poor at telling Warm, Calm and Sad apart. So **16 tracks are held for a listen** (two independent checks both said they sound like a different mood) and the rest are used as filed.
+- Warm is the thinnest folder (10 usable tracks) because several "Warm" tracks measure as loud, bright and busy.
+- Loudness differs by up to about 30 dB between individual tracks, so every excerpt is levelled to -20 LUFS.
+
+**What you do.** Open `music-library/review.html`, play the flagged tracks (30 seconds each), click what each one really is, copy the decisions into `music-library/decisions.json`, and rebuild with `tools/build_music_manifest.py`. Details: [MUSIC_LIBRARY.md](MUSIC_LIBRARY.md).
+
+**Honest limits.** "ok" means nothing measured contradicts the folder, not that a person listened. The excerpt always starts at the track's beginning and ends with a fade, not a musical ending. The demo server on Oracle does not have the audio (it is not in Git), so it cannot use the library until the tracks are copied there.
+
+---
+
+## 13. Words used in this guide
 
 - **API:** a way for one program to ask another to do something over the internet. Here: "make a soundtrack from this video."
 - **Job:** one request being worked on. You get its `id` at once and check back later.

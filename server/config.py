@@ -20,6 +20,8 @@ MAX_STORAGE_BYTES = int(float(os.environ.get('ECHOSPHERE_MAX_STORAGE_GB', '10'))
 # Stored videos older than this are removed automatically. 0 keeps them until deleted.
 RETENTION_HOURS = float(os.environ.get('ECHOSPHERE_RETENTION_HOURS', '0'))
 MAX_QUEUE = int(os.environ.get('ECHOSPHERE_MAX_QUEUE', '20'))
+# Folder of licensed recordings (warm/calm/sad/anger subfolders and a manifest.json). Not part of Git.
+LIBRARY_DIR = Path(os.environ.get('ECHOSPHERE_LIBRARY', ROOT / 'music-library')).resolve()
 
 if any(h not in LOCAL_HOSTS for h in ALLOWED_HOSTS) and len(API_KEY) < 24:
     raise RuntimeError('Serving beyond localhost requires ECHOSPHERE_API_KEY of at least 24 characters.')
