@@ -90,6 +90,10 @@ Kevin MacLeod's music is CC BY 4.0: **commercial use is allowed, but the credit 
 - If the library is missing, empty, or has no approved track for the requested mood, the request is refused with **409** before anything is stored. If it becomes empty after a job was accepted, the job fails with `error_code = library_empty`.
 - `GET /health` (with the key) reports `engines.library` and `library_tracks` (approved tracks per mood).
 
+## The browser page
+
+`video-music/` (see [BROWSER_VERSION.md](BROWSER_VERSION.md)) reads the same `manifest.json` and plays only `eligible` tracks. It also uses the 10 s, 30 s and 60 s loudness the builder measures (`lufs_10`, `lufs_30`, `lufs`) to level each song, so rebuild the manifest after adding tracks.
+
 ## Known limits
 
 - **Mood labels are not verified by ear** unless you (or a teammate) reviewed them. Automatic `ok` means "nothing measured contradicts the folder".

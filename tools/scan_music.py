@@ -38,7 +38,8 @@ def scan(library):
     cache = json.loads(cache_path.read_text(encoding='utf-8')) if cache_path.exists() else {}
     files = [p for m in MOODS if (library / m).is_dir() for p in sorted((library / m).rglob('*')) if p.suffix.lower() in AUDIO]
     hashed = [(p, sha256(p)) for p in files]
-    todo = [(p, d) for p, d in hashed if d not in cache or 'error' in cache[d]]
+    stale = lambda d: d not in cache or 'error' in cache[d] or 'lufs_10' not in cache[d].get('features', {})       # older cache entries lack the short-excerpt loudness
+    todo = [(p, d) for p, d in hashed if stale(d)]
     seen = set()
     todo = [(p, d) for p, d in todo if not (d in seen or seen.add(d))]
     if todo:
