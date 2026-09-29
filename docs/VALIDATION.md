@@ -141,6 +141,6 @@ New: `tests/test_library.py` (picker, cutting, levelling, credits in metadata, l
 
 - **Whether any track actually fits its mood.** Nobody has listened to the 58 usable tracks against the sphere; automatic checks cannot judge that. `review.html` exists to make this quick.
 - **Detection on more real footage** (unchanged from the earlier section).
-- **The Oracle demo server.** It does not have the audio (not in Git) and runs older code; `engine=library` would be refused there.
+- **The Oracle demo server.** It runs older code, and its container does not include the `music-library` folder, so `engine=library` would be refused there.
 - **How the level correction and fades sound** on real videos, and the seam where a track had to loop (no such case occurred with this library for videos up to 60 s, except tracks shorter than the video, which the picker avoids).
 - **Credits in the product.** The files carry them and `CREDITS.md` lists them, but showing them in the final product is a manual step.

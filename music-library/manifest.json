@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated": "2026-09-28",
+  "generated": "2026-09-29",
   "target_lufs": -20.0,
   "moods": [
     "warm",
@@ -9,15 +9,15 @@
     "anger"
   ],
   "eligible_per_mood": {
-    "warm": 10,
-    "calm": 14,
-    "sad": 16,
-    "anger": 18
+    "warm": 15,
+    "calm": 22,
+    "sad": 19,
+    "anger": 19
   },
   "status_counts": {
-    "ok": 58,
-    "review": 16,
-    "conflict": 4,
+    "ok": 75,
+    "review": 1,
+    "conflict": 0,
     "excluded": 2
   },
   "note": "Only tracks with eligible=true are ever played. \"ok\" means no contradiction was measured, not that anyone listened. listened=true means you approved or relabelled it.",
@@ -56,9 +56,7 @@
         "lufs": -17.09,
         "true_peak_dbtp": -0.87
       },
-      "reasons": [
-        "Two independent checks both say this sounds more like warm than anger. Listen and decide."
-      ],
+      "reasons": [],
       "checks": {
         "centroid_mood": "warm",
         "quadrant_mood": "warm",
@@ -66,10 +64,12 @@
         "quadrant_agrees": false,
         "both_name_other_mood": true
       },
-      "decision": null,
-      "status": "review",
-      "eligible": false,
-      "listened": false
+      "decision": {
+        "approve": true
+      },
+      "status": "ok",
+      "eligible": true,
+      "listened": true
     },
     {
       "id": "anger/Black Vortex.mp3",
@@ -107,10 +107,10 @@
       },
       "reasons": [],
       "checks": {
-        "centroid_mood": "anger",
-        "quadrant_mood": "sad",
-        "centroid_agrees": true,
-        "quadrant_agrees": false,
+        "centroid_mood": "warm",
+        "quadrant_mood": "anger",
+        "centroid_agrees": false,
+        "quadrant_agrees": true,
         "both_name_other_mood": false
       },
       "decision": null,
@@ -207,10 +207,12 @@
         "quadrant_agrees": true,
         "both_name_other_mood": false
       },
-      "decision": null,
+      "decision": {
+        "approve": true
+      },
       "status": "ok",
       "eligible": true,
-      "listened": false
+      "listened": true
     },
     {
       "id": "anger/Exhilarate.mp3",
@@ -724,10 +726,12 @@
         "quadrant_agrees": true,
         "both_name_other_mood": false
       },
-      "decision": null,
+      "decision": {
+        "approve": true
+      },
       "status": "ok",
       "eligible": true,
-      "listened": false
+      "listened": true
     },
     {
       "id": "anger/The Cannery.mp3",
@@ -765,16 +769,18 @@
       },
       "reasons": [],
       "checks": {
-        "centroid_mood": "anger",
+        "centroid_mood": "warm",
         "quadrant_mood": "anger",
-        "centroid_agrees": true,
+        "centroid_agrees": false,
         "quadrant_agrees": true,
         "both_name_other_mood": false
       },
-      "decision": null,
+      "decision": {
+        "approve": true
+      },
       "status": "ok",
       "eligible": true,
-      "listened": false
+      "listened": true
     },
     {
       "id": "anger/The Complex.mp3",
@@ -1048,9 +1054,7 @@
         "lufs": -12.92,
         "true_peak_dbtp": -0.33
       },
-      "reasons": [
-        "Two independent checks both say this sounds more like sad than calm. Listen and decide."
-      ],
+      "reasons": [],
       "checks": {
         "centroid_mood": "sad",
         "quadrant_mood": "sad",
@@ -1058,59 +1062,12 @@
         "quadrant_agrees": false,
         "both_name_other_mood": true
       },
-      "decision": null,
-      "status": "review",
-      "eligible": false,
-      "listened": false
-    },
-    {
-      "id": "calm/Blue Feather.mp3",
-      "file": "calm/Blue Feather.mp3",
-      "title": "Blue Feather",
-      "folder": "calm",
-      "mood": "calm",
-      "duration": 278.07,
-      "sha256": "b41b5bdd74d03e41a0632b4af2c982398f4c0fc17d8e6d1c3ba2a33b2188cb3f",
-      "artist": "Kevin MacLeod",
-      "license": "CC BY 4.0",
-      "source": "incompetech.com",
-      "license_url": "https://creativecommons.org/licenses/by/4.0/",
-      "credit": "Blue Feather Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0",
-      "license_evidence": "embedded artist tag \"Kevin MacLeod\" (licence terms read from incompetech.com's own FAQ)",
-      "features": {
-        "analysed_seconds": 60.0,
-        "tempo_bpm": 101,
-        "pulse_clarity": 0.308,
-        "onset_rate": 1.3,
-        "rms_db": -34.44,
-        "dynamic_range_db": 34.82,
-        "centroid_hz": 517.3,
-        "low_ratio": 0.159,
-        "flux_mean": 17.478,
-        "lead_silence_s": 1.0,
-        "clip_fraction": 0.0,
-        "key": "D minor",
-        "mode": "minor",
-        "major_corr": 0.466,
-        "minor_corr": 0.651,
-        "mode_margin": -0.186,
-        "lufs": -21.09,
-        "true_peak_dbtp": -2.72
+      "decision": {
+        "approve": true
       },
-      "reasons": [
-        "Two independent checks both say this sounds more like sad than calm. Listen and decide."
-      ],
-      "checks": {
-        "centroid_mood": "sad",
-        "quadrant_mood": "sad",
-        "centroid_agrees": false,
-        "quadrant_agrees": false,
-        "both_name_other_mood": true
-      },
-      "decision": null,
-      "status": "review",
-      "eligible": false,
-      "listened": false
+      "status": "ok",
+      "eligible": true,
+      "listened": true
     },
     {
       "id": "calm/DD Groove.mp3",
@@ -1146,9 +1103,7 @@
         "lufs": -13.98,
         "true_peak_dbtp": 0.1
       },
-      "reasons": [
-        "Two independent checks both say this sounds more like anger than calm. Listen and decide."
-      ],
+      "reasons": [],
       "checks": {
         "centroid_mood": "anger",
         "quadrant_mood": "anger",
@@ -1156,10 +1111,12 @@
         "quadrant_agrees": false,
         "both_name_other_mood": true
       },
-      "decision": null,
-      "status": "review",
-      "eligible": false,
-      "listened": false
+      "decision": {
+        "approve": true
+      },
+      "status": "ok",
+      "eligible": true,
+      "listened": true
     },
     {
       "id": "calm/Feather Waltz.mp3",
@@ -1289,9 +1246,7 @@
         "lufs": -18.18,
         "true_peak_dbtp": 0.72
       },
-      "reasons": [
-        "Two independent checks both say this sounds more like warm than calm. Listen and decide."
-      ],
+      "reasons": [],
       "checks": {
         "centroid_mood": "warm",
         "quadrant_mood": "warm",
@@ -1299,10 +1254,12 @@
         "quadrant_agrees": false,
         "both_name_other_mood": true
       },
-      "decision": null,
-      "status": "review",
-      "eligible": false,
-      "listened": false
+      "decision": {
+        "approve": true
+      },
+      "status": "ok",
+      "eligible": true,
+      "listened": true
     },
     {
       "id": "calm/Light Thought var 1.mp3",
@@ -1346,10 +1303,110 @@
         "quadrant_agrees": true,
         "both_name_other_mood": false
       },
-      "decision": null,
+      "decision": {
+        "approve": true
+      },
       "status": "ok",
       "eligible": true,
-      "listened": false
+      "listened": true
+    },
+    {
+      "id": "calm/Loss.mp3",
+      "file": "calm/Loss.mp3",
+      "title": "Loss",
+      "folder": "calm",
+      "mood": "calm",
+      "duration": 133.66,
+      "sha256": "13fd91b1f63dd86260733882d2d0662e23df01476f0553bf420ca4933eb5d2c6",
+      "artist": "Kevin MacLeod",
+      "license": "CC BY 4.0",
+      "source": "incompetech.com",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "credit": "Loss Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0",
+      "license_evidence": "embedded artist tag \"Kevin MacLeod\" (licence terms read from incompetech.com's own FAQ)",
+      "features": {
+        "analysed_seconds": 60.0,
+        "tempo_bpm": 93,
+        "pulse_clarity": 0.232,
+        "onset_rate": 0.683,
+        "rms_db": -39.1,
+        "dynamic_range_db": 18.28,
+        "centroid_hz": 504.9,
+        "low_ratio": 0.366,
+        "flux_mean": 11.196,
+        "lead_silence_s": 2.0,
+        "clip_fraction": 0.0,
+        "key": "D major",
+        "mode": "major",
+        "major_corr": 0.748,
+        "minor_corr": 0.625,
+        "mode_margin": 0.123,
+        "lufs": -32.76,
+        "true_peak_dbtp": -15.68
+      },
+      "reasons": [],
+      "checks": {
+        "centroid_mood": "calm",
+        "quadrant_mood": "calm",
+        "centroid_agrees": true,
+        "quadrant_agrees": true,
+        "both_name_other_mood": false
+      },
+      "decision": {
+        "approve": true
+      },
+      "status": "ok",
+      "eligible": true,
+      "listened": true
+    },
+    {
+      "id": "calm/Luminous Rain.mp3",
+      "file": "calm/Luminous Rain.mp3",
+      "title": "Luminous Rain",
+      "folder": "calm",
+      "mood": "calm",
+      "duration": 114.08,
+      "sha256": "73825cc2c4aba34e200e99a6a737ab792f683bbd875f643ca5b00016349a0a24",
+      "artist": "Kevin MacLeod",
+      "license": "CC BY 4.0",
+      "source": "incompetech.com",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "credit": "Luminous Rain Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0",
+      "license_evidence": "embedded artist tag \"Kevin MacLeod\" (licence terms read from incompetech.com's own FAQ)",
+      "features": {
+        "analysed_seconds": 60.0,
+        "tempo_bpm": 101,
+        "pulse_clarity": 0.336,
+        "onset_rate": 2.117,
+        "rms_db": -31.95,
+        "dynamic_range_db": 18.38,
+        "centroid_hz": 761.2,
+        "low_ratio": 0.068,
+        "flux_mean": 29.336,
+        "lead_silence_s": 0.46,
+        "clip_fraction": 0.0,
+        "key": "G major",
+        "mode": "major",
+        "major_corr": 0.849,
+        "minor_corr": 0.516,
+        "mode_margin": 0.333,
+        "lufs": -25.81,
+        "true_peak_dbtp": -6.15
+      },
+      "reasons": [],
+      "checks": {
+        "centroid_mood": "calm",
+        "quadrant_mood": "calm",
+        "centroid_agrees": true,
+        "quadrant_agrees": true,
+        "both_name_other_mood": false
+      },
+      "decision": {
+        "approve": true
+      },
+      "status": "ok",
+      "eligible": true,
+      "listened": true
     },
     {
       "id": "calm/Mana Two - Part 1.mp3",
@@ -1387,9 +1444,9 @@
       },
       "reasons": [],
       "checks": {
-        "centroid_mood": "sad",
+        "centroid_mood": "calm",
         "quadrant_mood": "calm",
-        "centroid_agrees": false,
+        "centroid_agrees": true,
         "quadrant_agrees": true,
         "both_name_other_mood": false
       },
@@ -1432,13 +1489,7 @@
         "lufs": -28.99,
         "true_peak_dbtp": -13.23
       },
-      "reasons": [
-        "The exact same file is in more than one mood folder (calm/Midsummer Sky.mp3, warm/Midsummer Sky.mp3). Decide which mood it is."
-      ],
-      "conflict": [
-        "calm/Midsummer Sky.mp3",
-        "warm/Midsummer Sky.mp3"
-      ],
+      "reasons": [],
       "checks": {
         "centroid_mood": "sad",
         "quadrant_mood": "sad",
@@ -1446,10 +1497,12 @@
         "quadrant_agrees": false,
         "both_name_other_mood": true
       },
-      "decision": null,
-      "status": "conflict",
-      "eligible": false,
-      "listened": false
+      "decision": {
+        "approve": true
+      },
+      "status": "ok",
+      "eligible": true,
+      "listened": true
     },
     {
       "id": "calm/Morning.mp3",
@@ -1487,9 +1540,9 @@
       },
       "reasons": [],
       "checks": {
-        "centroid_mood": "warm",
+        "centroid_mood": "calm",
         "quadrant_mood": "calm",
-        "centroid_agrees": false,
+        "centroid_agrees": true,
         "quadrant_agrees": true,
         "both_name_other_mood": false
       },
@@ -1497,6 +1550,55 @@
       "status": "ok",
       "eligible": true,
       "listened": false
+    },
+    {
+      "id": "calm/Night on the Docks - Sax.mp3",
+      "file": "calm/Night on the Docks - Sax.mp3",
+      "title": "Night on the Docks - Sax",
+      "folder": "calm",
+      "mood": "calm",
+      "duration": 174.08,
+      "sha256": "732871fa31755c4a3ae260cccbdd4044b81ad49cabf8fbb1ee0f5927d36d7d79",
+      "artist": "Kevin MacLeod",
+      "license": "CC BY 4.0",
+      "source": "incompetech.com",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "credit": "Night on the Docks - Sax Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0",
+      "license_evidence": "embedded artist tag \"Kevin MacLeod\" (licence terms read from incompetech.com's own FAQ)",
+      "features": {
+        "analysed_seconds": 60.0,
+        "tempo_bpm": 97,
+        "pulse_clarity": 0.2,
+        "onset_rate": 1.633,
+        "rms_db": -29.1,
+        "dynamic_range_db": 27.04,
+        "centroid_hz": 604.5,
+        "low_ratio": 0.217,
+        "flux_mean": 23.798,
+        "lead_silence_s": 1.0,
+        "clip_fraction": 0.0,
+        "key": "A# major",
+        "mode": "major",
+        "major_corr": 0.548,
+        "minor_corr": 0.484,
+        "mode_margin": 0.065,
+        "lufs": -24.55,
+        "true_peak_dbtp": -9.94
+      },
+      "reasons": [],
+      "checks": {
+        "centroid_mood": "calm",
+        "quadrant_mood": "calm",
+        "centroid_agrees": true,
+        "quadrant_agrees": true,
+        "both_name_other_mood": false
+      },
+      "decision": {
+        "approve": true
+      },
+      "status": "ok",
+      "eligible": true,
+      "listened": true
     },
     {
       "id": "calm/Reawakening.mp3",
@@ -1579,13 +1681,7 @@
         "lufs": -22.25,
         "true_peak_dbtp": -5.78
       },
-      "reasons": [
-        "The exact same file is in more than one mood folder (calm/Sapphire Isle.mp3, warm/Sapphire Isle.mp3). Decide which mood it is."
-      ],
-      "conflict": [
-        "calm/Sapphire Isle.mp3",
-        "warm/Sapphire Isle.mp3"
-      ],
+      "reasons": [],
       "checks": {
         "centroid_mood": "sad",
         "quadrant_mood": "calm",
@@ -1593,10 +1689,12 @@
         "quadrant_agrees": true,
         "both_name_other_mood": false
       },
-      "decision": null,
-      "status": "conflict",
-      "eligible": false,
-      "listened": false
+      "decision": {
+        "approve": true
+      },
+      "status": "ok",
+      "eligible": true,
+      "listened": true
     },
     {
       "id": "calm/Somewhere Sunny (ver 2).mp3",
@@ -1734,10 +1832,12 @@
         "quadrant_agrees": false,
         "both_name_other_mood": false
       },
-      "decision": null,
+      "decision": {
+        "approve": true
+      },
       "status": "ok",
       "eligible": true,
-      "listened": false
+      "listened": true
     },
     {
       "id": "calm/Thinking of You.mp3",
@@ -1781,10 +1881,12 @@
         "quadrant_agrees": true,
         "both_name_other_mood": false
       },
-      "decision": null,
+      "decision": {
+        "approve": true
+      },
       "status": "ok",
       "eligible": true,
-      "listened": false
+      "listened": true
     },
     {
       "id": "calm/Water Lily.mp3",
@@ -1926,6 +2028,55 @@
       "status": "ok",
       "eligible": true,
       "listened": false
+    },
+    {
+      "id": "sad/Blue Feather.mp3",
+      "file": "sad/Blue Feather.mp3",
+      "title": "Blue Feather",
+      "folder": "sad",
+      "mood": "sad",
+      "duration": 278.07,
+      "sha256": "b41b5bdd74d03e41a0632b4af2c982398f4c0fc17d8e6d1c3ba2a33b2188cb3f",
+      "artist": "Kevin MacLeod",
+      "license": "CC BY 4.0",
+      "source": "incompetech.com",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "credit": "Blue Feather Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0",
+      "license_evidence": "embedded artist tag \"Kevin MacLeod\" (licence terms read from incompetech.com's own FAQ)",
+      "features": {
+        "analysed_seconds": 60.0,
+        "tempo_bpm": 101,
+        "pulse_clarity": 0.308,
+        "onset_rate": 1.3,
+        "rms_db": -34.44,
+        "dynamic_range_db": 34.82,
+        "centroid_hz": 517.3,
+        "low_ratio": 0.159,
+        "flux_mean": 17.478,
+        "lead_silence_s": 1.0,
+        "clip_fraction": 0.0,
+        "key": "D minor",
+        "mode": "minor",
+        "major_corr": 0.466,
+        "minor_corr": 0.651,
+        "mode_margin": -0.186,
+        "lufs": -21.09,
+        "true_peak_dbtp": -2.72
+      },
+      "reasons": [],
+      "checks": {
+        "centroid_mood": "sad",
+        "quadrant_mood": "sad",
+        "centroid_agrees": true,
+        "quadrant_agrees": true,
+        "both_name_other_mood": false
+      },
+      "decision": {
+        "approve": true
+      },
+      "status": "ok",
+      "eligible": true,
+      "listened": true
     },
     {
       "id": "sad/Death of Kings.mp3",
@@ -2110,10 +2261,12 @@
         "quadrant_agrees": true,
         "both_name_other_mood": false
       },
-      "decision": null,
+      "decision": {
+        "approve": true
+      },
       "status": "ok",
       "eligible": true,
-      "listened": false
+      "listened": true
     },
     {
       "id": "sad/Impromptu in Quarter Comma Meantone.mp3",
@@ -2149,9 +2302,7 @@
         "lufs": -18.12,
         "true_peak_dbtp": -0.14
       },
-      "reasons": [
-        "Two independent checks both say this sounds more like calm than sad. Listen and decide."
-      ],
+      "reasons": [],
       "checks": {
         "centroid_mood": "calm",
         "quadrant_mood": "calm",
@@ -2159,10 +2310,12 @@
         "quadrant_agrees": false,
         "both_name_other_mood": true
       },
-      "decision": null,
-      "status": "review",
-      "eligible": false,
-      "listened": false
+      "decision": {
+        "approve": true
+      },
+      "status": "ok",
+      "eligible": true,
+      "listened": true
     },
     {
       "id": "sad/Lasting Hope.mp3",
@@ -2200,64 +2353,15 @@
       },
       "reasons": [],
       "checks": {
-        "centroid_mood": "calm",
+        "centroid_mood": "sad",
         "quadrant_mood": "sad",
-        "centroid_agrees": false,
+        "centroid_agrees": true,
         "quadrant_agrees": true,
         "both_name_other_mood": false
       },
       "decision": null,
       "status": "ok",
       "eligible": true,
-      "listened": false
-    },
-    {
-      "id": "sad/Loss.mp3",
-      "file": "sad/Loss.mp3",
-      "title": "Loss",
-      "folder": "sad",
-      "mood": "sad",
-      "duration": 133.66,
-      "sha256": "13fd91b1f63dd86260733882d2d0662e23df01476f0553bf420ca4933eb5d2c6",
-      "artist": "Kevin MacLeod",
-      "license": "CC BY 4.0",
-      "source": "incompetech.com",
-      "license_url": "https://creativecommons.org/licenses/by/4.0/",
-      "credit": "Loss Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0",
-      "license_evidence": "embedded artist tag \"Kevin MacLeod\" (licence terms read from incompetech.com's own FAQ)",
-      "features": {
-        "analysed_seconds": 60.0,
-        "tempo_bpm": 93,
-        "pulse_clarity": 0.232,
-        "onset_rate": 0.683,
-        "rms_db": -39.1,
-        "dynamic_range_db": 18.28,
-        "centroid_hz": 504.9,
-        "low_ratio": 0.366,
-        "flux_mean": 11.196,
-        "lead_silence_s": 2.0,
-        "clip_fraction": 0.0,
-        "key": "D major",
-        "mode": "major",
-        "major_corr": 0.748,
-        "minor_corr": 0.625,
-        "mode_margin": 0.123,
-        "lufs": -32.76,
-        "true_peak_dbtp": -15.68
-      },
-      "reasons": [
-        "Two independent checks both say this sounds more like calm than sad. Listen and decide."
-      ],
-      "checks": {
-        "centroid_mood": "calm",
-        "quadrant_mood": "calm",
-        "centroid_agrees": false,
-        "quadrant_agrees": false,
-        "both_name_other_mood": true
-      },
-      "decision": null,
-      "status": "review",
-      "eligible": false,
       "listened": false
     },
     {
@@ -2305,55 +2409,6 @@
       "decision": null,
       "status": "ok",
       "eligible": true,
-      "listened": false
-    },
-    {
-      "id": "sad/Night on the Docks - Sax.mp3",
-      "file": "sad/Night on the Docks - Sax.mp3",
-      "title": "Night on the Docks - Sax",
-      "folder": "sad",
-      "mood": "sad",
-      "duration": 174.08,
-      "sha256": "732871fa31755c4a3ae260cccbdd4044b81ad49cabf8fbb1ee0f5927d36d7d79",
-      "artist": "Kevin MacLeod",
-      "license": "CC BY 4.0",
-      "source": "incompetech.com",
-      "license_url": "https://creativecommons.org/licenses/by/4.0/",
-      "credit": "Night on the Docks - Sax Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0",
-      "license_evidence": "embedded artist tag \"Kevin MacLeod\" (licence terms read from incompetech.com's own FAQ)",
-      "features": {
-        "analysed_seconds": 60.0,
-        "tempo_bpm": 97,
-        "pulse_clarity": 0.2,
-        "onset_rate": 1.633,
-        "rms_db": -29.1,
-        "dynamic_range_db": 27.04,
-        "centroid_hz": 604.5,
-        "low_ratio": 0.217,
-        "flux_mean": 23.798,
-        "lead_silence_s": 1.0,
-        "clip_fraction": 0.0,
-        "key": "A# major",
-        "mode": "major",
-        "major_corr": 0.548,
-        "minor_corr": 0.484,
-        "mode_margin": 0.065,
-        "lufs": -24.55,
-        "true_peak_dbtp": -9.94
-      },
-      "reasons": [
-        "Two independent checks both say this sounds more like calm than sad. Listen and decide."
-      ],
-      "checks": {
-        "centroid_mood": "calm",
-        "quadrant_mood": "calm",
-        "centroid_agrees": false,
-        "quadrant_agrees": false,
-        "both_name_other_mood": true
-      },
-      "decision": null,
-      "status": "review",
-      "eligible": false,
       "listened": false
     },
     {
@@ -2672,9 +2727,7 @@
         "lufs": -15.57,
         "true_peak_dbtp": -2.17
       },
-      "reasons": [
-        "Two independent checks both say this sounds more like warm than sad. Listen and decide."
-      ],
+      "reasons": [],
       "checks": {
         "centroid_mood": "warm",
         "quadrant_mood": "warm",
@@ -2682,10 +2735,12 @@
         "quadrant_agrees": false,
         "both_name_other_mood": true
       },
-      "decision": null,
-      "status": "review",
-      "eligible": false,
-      "listened": false
+      "decision": {
+        "approve": true
+      },
+      "status": "ok",
+      "eligible": true,
+      "listened": true
     },
     {
       "id": "sad/Soporific.mp3",
@@ -2776,10 +2831,12 @@
         "quadrant_agrees": false,
         "both_name_other_mood": false
       },
-      "decision": null,
+      "decision": {
+        "approve": true
+      },
       "status": "ok",
       "eligible": true,
-      "listened": false
+      "listened": true
     },
     {
       "id": "sad/Trio for Piano Violin and Viola.mp3",
@@ -2823,10 +2880,12 @@
         "quadrant_agrees": false,
         "both_name_other_mood": false
       },
-      "decision": null,
+      "decision": {
+        "approve": true
+      },
       "status": "ok",
       "eligible": true,
-      "listened": false
+      "listened": true
     },
     {
       "id": "sad/With the Sea.mp3",
@@ -2958,9 +3017,9 @@
       },
       "reasons": [],
       "checks": {
-        "centroid_mood": "warm",
+        "centroid_mood": "sad",
         "quadrant_mood": "warm",
-        "centroid_agrees": true,
+        "centroid_agrees": false,
         "quadrant_agrees": true,
         "both_name_other_mood": false
       },
@@ -3003,9 +3062,7 @@
         "lufs": -15.96,
         "true_peak_dbtp": -0.57
       },
-      "reasons": [
-        "Two independent checks both say this sounds more like calm than warm. Listen and decide."
-      ],
+      "reasons": [],
       "checks": {
         "centroid_mood": "calm",
         "quadrant_mood": "calm",
@@ -3013,10 +3070,12 @@
         "quadrant_agrees": false,
         "both_name_other_mood": true
       },
-      "decision": null,
-      "status": "review",
-      "eligible": false,
-      "listened": false
+      "decision": {
+        "approve": true
+      },
+      "status": "ok",
+      "eligible": true,
+      "listened": true
     },
     {
       "id": "warm/Carpe Diem.mp3",
@@ -3147,7 +3206,7 @@
         "true_peak_dbtp": -1.08
       },
       "reasons": [
-        "Source and licence could not be confirmed (no artist tag). Re-download it from its source, or remove it."
+        "Source and licence could not be confirmed. Re-download it from its source, record its terms in music-library/licenses.json, or remove it."
       ],
       "checks": {
         "centroid_mood": "warm",
@@ -3195,9 +3254,7 @@
         "lufs": -17.65,
         "true_peak_dbtp": -0.19
       },
-      "reasons": [
-        "Two independent checks both say this sounds more like anger than warm. Listen and decide."
-      ],
+      "reasons": [],
       "checks": {
         "centroid_mood": "anger",
         "quadrant_mood": "anger",
@@ -3205,10 +3262,12 @@
         "quadrant_agrees": false,
         "both_name_other_mood": true
       },
-      "decision": null,
-      "status": "review",
-      "eligible": false,
-      "listened": false
+      "decision": {
+        "approve": true
+      },
+      "status": "ok",
+      "eligible": true,
+      "listened": true
     },
     {
       "id": "warm/Happy Alley.mp3",
@@ -3299,10 +3358,12 @@
         "quadrant_agrees": true,
         "both_name_other_mood": false
       },
-      "decision": null,
+      "decision": {
+        "approve": true
+      },
       "status": "ok",
       "eligible": true,
-      "listened": false
+      "listened": true
     },
     {
       "id": "warm/Inspired.mp3",
@@ -3338,9 +3399,7 @@
         "lufs": -13.01,
         "true_peak_dbtp": -0.11
       },
-      "reasons": [
-        "Two independent checks both say this sounds more like anger than warm. Listen and decide."
-      ],
+      "reasons": [],
       "checks": {
         "centroid_mood": "anger",
         "quadrant_mood": "anger",
@@ -3348,59 +3407,12 @@
         "quadrant_agrees": false,
         "both_name_other_mood": true
       },
-      "decision": null,
-      "status": "review",
-      "eligible": false,
-      "listened": false
-    },
-    {
-      "id": "warm/Luminous Rain.mp3",
-      "file": "warm/Luminous Rain.mp3",
-      "title": "Luminous Rain",
-      "folder": "warm",
-      "mood": "warm",
-      "duration": 114.08,
-      "sha256": "73825cc2c4aba34e200e99a6a737ab792f683bbd875f643ca5b00016349a0a24",
-      "artist": "Kevin MacLeod",
-      "license": "CC BY 4.0",
-      "source": "incompetech.com",
-      "license_url": "https://creativecommons.org/licenses/by/4.0/",
-      "credit": "Luminous Rain Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0",
-      "license_evidence": "embedded artist tag \"Kevin MacLeod\" (licence terms read from incompetech.com's own FAQ)",
-      "features": {
-        "analysed_seconds": 60.0,
-        "tempo_bpm": 101,
-        "pulse_clarity": 0.336,
-        "onset_rate": 2.117,
-        "rms_db": -31.95,
-        "dynamic_range_db": 18.38,
-        "centroid_hz": 761.2,
-        "low_ratio": 0.068,
-        "flux_mean": 29.336,
-        "lead_silence_s": 0.46,
-        "clip_fraction": 0.0,
-        "key": "G major",
-        "mode": "major",
-        "major_corr": 0.849,
-        "minor_corr": 0.516,
-        "mode_margin": 0.333,
-        "lufs": -25.81,
-        "true_peak_dbtp": -6.15
+      "decision": {
+        "approve": true
       },
-      "reasons": [
-        "Two independent checks both say this sounds more like calm than warm. Listen and decide."
-      ],
-      "checks": {
-        "centroid_mood": "calm",
-        "quadrant_mood": "calm",
-        "centroid_agrees": false,
-        "quadrant_agrees": false,
-        "both_name_other_mood": true
-      },
-      "decision": null,
-      "status": "review",
-      "eligible": false,
-      "listened": false
+      "status": "ok",
+      "eligible": true,
+      "listened": true
     },
     {
       "id": "warm/Midday Dance.mp3",
@@ -3439,68 +3451,17 @@
       "reasons": [],
       "checks": {
         "centroid_mood": "warm",
-        "quadrant_mood": "warm",
+        "quadrant_mood": "anger",
         "centroid_agrees": true,
-        "quadrant_agrees": true,
+        "quadrant_agrees": false,
         "both_name_other_mood": false
       },
-      "decision": null,
+      "decision": {
+        "approve": true
+      },
       "status": "ok",
       "eligible": true,
-      "listened": false
-    },
-    {
-      "id": "warm/Midsummer Sky.mp3",
-      "file": "warm/Midsummer Sky.mp3",
-      "title": "Midsummer Sky",
-      "folder": "warm",
-      "mood": "warm",
-      "duration": 114.08,
-      "sha256": "eae0a17f266f109ad051b4ab783ab94961beb4f679e462722f02bba6cc519879",
-      "artist": "Kevin MacLeod",
-      "license": "CC BY 4.0",
-      "source": "incompetech.com",
-      "license_url": "https://creativecommons.org/licenses/by/4.0/",
-      "credit": "Midsummer Sky Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0",
-      "license_evidence": "embedded artist tag \"Kevin MacLeod\" (licence terms read from incompetech.com's own FAQ)",
-      "features": {
-        "analysed_seconds": 60.0,
-        "tempo_bpm": 127,
-        "pulse_clarity": 0.245,
-        "onset_rate": 3.167,
-        "rms_db": -34.48,
-        "dynamic_range_db": 16.02,
-        "centroid_hz": 789.9,
-        "low_ratio": 0.027,
-        "flux_mean": 26.088,
-        "lead_silence_s": 0.12,
-        "clip_fraction": 0.0,
-        "key": "D minor",
-        "mode": "minor",
-        "major_corr": 0.61,
-        "minor_corr": 0.626,
-        "mode_margin": -0.016,
-        "lufs": -28.99,
-        "true_peak_dbtp": -13.23
-      },
-      "reasons": [
-        "The exact same file is in more than one mood folder (calm/Midsummer Sky.mp3, warm/Midsummer Sky.mp3). Decide which mood it is."
-      ],
-      "conflict": [
-        "calm/Midsummer Sky.mp3",
-        "warm/Midsummer Sky.mp3"
-      ],
-      "checks": {
-        "centroid_mood": "sad",
-        "quadrant_mood": "sad",
-        "centroid_agrees": false,
-        "quadrant_agrees": false,
-        "both_name_other_mood": true
-      },
-      "decision": null,
-      "status": "conflict",
-      "eligible": false,
-      "listened": false
+      "listened": true
     },
     {
       "id": "warm/Neon Laser Horizon.mp3",
@@ -3536,9 +3497,7 @@
         "lufs": -12.15,
         "true_peak_dbtp": 0.7
       },
-      "reasons": [
-        "Two independent checks both say this sounds more like anger than warm. Listen and decide."
-      ],
+      "reasons": [],
       "checks": {
         "centroid_mood": "anger",
         "quadrant_mood": "anger",
@@ -3546,10 +3505,12 @@
         "quadrant_agrees": false,
         "both_name_other_mood": true
       },
-      "decision": null,
-      "status": "review",
-      "eligible": false,
-      "listened": false
+      "decision": {
+        "approve": true
+      },
+      "status": "ok",
+      "eligible": true,
+      "listened": true
     },
     {
       "id": "warm/Pennsylvania Rose.mp3",
@@ -3593,10 +3554,12 @@
         "quadrant_agrees": true,
         "both_name_other_mood": false
       },
-      "decision": null,
+      "decision": {
+        "approve": true
+      },
       "status": "ok",
       "eligible": true,
-      "listened": false
+      "listened": true
     },
     {
       "id": "warm/Perspectives.mp3",
@@ -3646,59 +3609,6 @@
       "listened": false
     },
     {
-      "id": "warm/Sapphire Isle.mp3",
-      "file": "warm/Sapphire Isle.mp3",
-      "title": "Sapphire Isle",
-      "folder": "warm",
-      "mood": "warm",
-      "duration": 131.53,
-      "sha256": "bfd591ef7f89e0101675e3766fccacb1bc326eecc94d89dce914bf9a9cb577cb",
-      "artist": "Kevin MacLeod",
-      "license": "CC BY 4.0",
-      "source": "incompetech.com",
-      "license_url": "https://creativecommons.org/licenses/by/4.0/",
-      "credit": "Sapphire Isle Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0",
-      "license_evidence": "embedded artist tag \"Kevin MacLeod\" (licence terms read from incompetech.com's own FAQ)",
-      "features": {
-        "analysed_seconds": 60.0,
-        "tempo_bpm": 77,
-        "pulse_clarity": 0.375,
-        "onset_rate": 2.083,
-        "rms_db": -26.62,
-        "dynamic_range_db": 15.75,
-        "centroid_hz": 836.9,
-        "low_ratio": 0.037,
-        "flux_mean": 43.161,
-        "lead_silence_s": 0.74,
-        "clip_fraction": 0.0,
-        "key": "C# major",
-        "mode": "major",
-        "major_corr": 0.73,
-        "minor_corr": 0.668,
-        "mode_margin": 0.061,
-        "lufs": -22.25,
-        "true_peak_dbtp": -5.78
-      },
-      "reasons": [
-        "The exact same file is in more than one mood folder (calm/Sapphire Isle.mp3, warm/Sapphire Isle.mp3). Decide which mood it is."
-      ],
-      "conflict": [
-        "calm/Sapphire Isle.mp3",
-        "warm/Sapphire Isle.mp3"
-      ],
-      "checks": {
-        "centroid_mood": "sad",
-        "quadrant_mood": "calm",
-        "centroid_agrees": false,
-        "quadrant_agrees": false,
-        "both_name_other_mood": false
-      },
-      "decision": null,
-      "status": "conflict",
-      "eligible": false,
-      "listened": false
-    },
-    {
       "id": "warm/Sleep_and_Then.mp3",
       "file": "warm/Sleep_and_Then.mp3",
       "title": "Sleep_and_Then",
@@ -3732,17 +3642,19 @@
         "lufs": -29.52,
         "true_peak_dbtp": -13.65
       },
-      "reasons": [],
+      "reasons": [
+        "Two independent checks both say this sounds more like calm than warm. Listen and decide."
+      ],
       "checks": {
-        "centroid_mood": "warm",
+        "centroid_mood": "calm",
         "quadrant_mood": "calm",
-        "centroid_agrees": true,
+        "centroid_agrees": false,
         "quadrant_agrees": false,
-        "both_name_other_mood": false
+        "both_name_other_mood": true
       },
       "decision": null,
-      "status": "ok",
-      "eligible": true,
+      "status": "review",
+      "eligible": false,
       "listened": false
     },
     {
@@ -3779,9 +3691,7 @@
         "lufs": -10.16,
         "true_peak_dbtp": 0.78
       },
-      "reasons": [
-        "Two independent checks both say this sounds more like anger than warm. Listen and decide."
-      ],
+      "reasons": [],
       "checks": {
         "centroid_mood": "anger",
         "quadrant_mood": "anger",
@@ -3789,10 +3699,12 @@
         "quadrant_agrees": false,
         "both_name_other_mood": true
       },
-      "decision": null,
-      "status": "review",
-      "eligible": false,
-      "listened": false
+      "decision": {
+        "approve": true
+      },
+      "status": "ok",
+      "eligible": true,
+      "listened": true
     },
     {
       "id": "warm/Super Power Cool Dude.mp3",
@@ -3828,9 +3740,7 @@
         "lufs": -13.92,
         "true_peak_dbtp": -0.29
       },
-      "reasons": [
-        "Two independent checks both say this sounds more like anger than warm. Listen and decide."
-      ],
+      "reasons": [],
       "checks": {
         "centroid_mood": "anger",
         "quadrant_mood": "anger",
@@ -3838,10 +3748,12 @@
         "quadrant_agrees": false,
         "both_name_other_mood": true
       },
-      "decision": null,
-      "status": "review",
-      "eligible": false,
-      "listened": false
+      "decision": {
+        "approve": true
+      },
+      "status": "ok",
+      "eligible": true,
+      "listened": true
     }
   ]
 }

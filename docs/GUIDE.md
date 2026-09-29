@@ -325,7 +325,7 @@ The site is down for a few minutes while it rebuilds. To roll back, check out th
 
 **What you do.** Open `music-library/review.html`, play the flagged tracks (30 seconds each), click what each one really is, copy the decisions into `music-library/decisions.json`, and rebuild with `tools/build_music_manifest.py`. Details: [MUSIC_LIBRARY.md](MUSIC_LIBRARY.md).
 
-**Honest limits.** "ok" means nothing measured contradicts the folder, not that a person listened. The excerpt always starts at the track's beginning and ends with a fade, not a musical ending. The demo server on Oracle does not have the audio (it is not in Git), so it cannot use the library until the tracks are copied there.
+**Honest limits.** "ok" means nothing measured contradicts the folder, not that a person listened. The excerpt always starts at the track's beginning and ends with a fade, not a musical ending. The demo server on Oracle cannot use the library yet: its container does not include the `music-library` folder, so it would refuse this option until that is set up.
 
 ---
 

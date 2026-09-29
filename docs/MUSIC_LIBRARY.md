@@ -13,11 +13,16 @@ music-library/
   CREDITS.md                     the attribution lines the licence requires. Generated. Tracked in Git.
   decisions.json                 YOUR decisions (approve, relabel, remove). Yours to keep.
   licenses.json                  optional: licence terms for sources other than incompetech.com
+  decisions-as-saved.json        a copy of your decisions as you saved them, before files were moved
+  moves-log.txt                  which files were moved, and the check that none were lost
+  _removed/                      duplicates taken out of the library (never deleted, never committed)
   review.html                    the listening page. Generated. Not tracked.
   .features-cache.json           measurement cache. Generated. Not tracked.
 ```
 
-The audio files themselves are **not** in Git (they are large, and they are someone else's work). Anyone who clones the repository must put the tracks into the four folders themselves. Only the manifest and the credits are tracked.
+The audio files **are** in Git (about 500 MB, 76 tracks), because the licence (CC BY 4.0) allows sharing when the credit goes with them, and `CREDITS.md` and `music-library/README.md` travel in the same folder. Only tracks whose licence could be confirmed are committed; an unknown-source file or a duplicate never is. New audio is ignored by default so nothing is published by accident: after the builder confirms a track's licence, add it on purpose with `git add -f music-library/<mood>/<file>`.
+
+Two things to know before merging this to `main`: the size (about 500 MB) stays in the repository's history for good, and GitHub Pages publishes the whole repository, so the tracks would also be downloadable from the site's address (its limit is 1 GB).
 
 ## Adding tracks
 
@@ -50,7 +55,7 @@ Only `ok` tracks are ever played. Approving a track (or relabelling it) in `deci
 
 ## Reviewing quickly
 
-Open `music-library/review.html` in a browser (double-click it; audio plays from the same folder). It lists the flagged tracks first, then three random tracks per mood that raised no flag, as a spot-check. Each card plays the first 30 seconds and has buttons: the mood it really is, or **Remove it**. When done, press **Copy decisions** (or **Download decisions.json**) and save the result as `music-library/decisions.json`, then rebuild. Decisions survive rebuilds.
+Open `music-library/review.html` in a browser (double-click it; audio plays from the same folder). It lists the flagged tracks first, then three random tracks per mood that raised no flag, as a spot-check. Each card plays the first 30 seconds and has buttons: the mood it really is, or **Remove it**. When done, press **Copy decisions** (or **Download decisions.json**) and save the result as `music-library/decisions.json`. Then run `tools/apply_decisions.py` (add `--dry-run` first to see what it would do): it moves each file into the folder you chose, moves removed ones into `_removed/` (nothing is deleted), checks every file's fingerprint before and after, and rewrites `decisions.json` for the new paths. Finally rebuild with `tools/build_music_manifest.py`. Decisions survive rebuilds.
 
 `decisions.json` looks like this, and can be edited by hand:
 
@@ -91,11 +96,13 @@ Kevin MacLeod's music is CC BY 4.0: **commercial use is allowed, but the credit 
 - **Warm is the thinnest folder.** Several "Warm" tracks measure as loud, bright and busy, which is not what the product means by Warm (comforting, gently joyful). Review them.
 - The excerpt always starts at the beginning of the track. It is not aligned to beats or to events in the video, and the end is a fade, not a musical ending.
 - Only the first 60 seconds of a track were measured, but a 60-second video plays exactly that part, so this matches use.
-- The Oracle demo server does **not** have the library (the audio is not in Git). It would refuse `engine=library` until the tracks are copied there.
+- The Oracle demo server cannot use the library yet: its container is built without the `music-library` folder (it is in `.dockerignore` and not mounted), so `engine=library` would be refused there. Pulling the repository onto the VM would bring the files, but the container would still need them mounted.
 
 ## Commands
 
 ```
+.\.venv\Scripts\python.exe tools/apply_decisions.py --dry-run   show which files would move to match decisions.json
+.\.venv\Scripts\python.exe tools/apply_decisions.py             move them (nothing is deleted)
 .\.venv\Scripts\python.exe tools/build_music_manifest.py      build or rebuild the manifest, credits and review page
 .\.venv\Scripts\python.exe -m pytest -q tests/test_library.py tests/test_music_manifest.py
 ```

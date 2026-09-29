@@ -6,7 +6,7 @@ Edited: shortened and faded to fit the video. That statement must accompany the 
 
 Licence: https://creativecommons.org/licenses/by/4.0/
 
-## Warm (19)
+## Warm (16)
 
 - Adding the Sun Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0
 - Americana Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0
@@ -17,30 +17,29 @@ Licence: https://creativecommons.org/licenses/by/4.0/
 - Happy Alley Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0
 - Inner Light Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0
 - Inspired Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0
-- Luminous Rain Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0
 - Midday Dance Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0
-- Midsummer Sky Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0
 - Neon Laser Horizon Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0
 - Pennsylvania Rose Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0
 - Perspectives Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0
-- Sapphire Isle Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0
 - Sleep_and_Then Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0
 - Son Of A Rocket Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0
 - Super Power Cool Dude Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0
 
-## Calm (20)
+## Calm (22)
 
 - Adeste Fideles - shorter Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0
 - Amazing Grace 2011 Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0
-- Blue Feather Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0
 - DD Groove Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0
 - Feather Waltz Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0
 - Frozen Star Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0
 - Impact Andante Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0
 - Light Thought var 3 Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0
+- Loss Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0
+- Luminous Rain Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0
 - Mana Two - Part 1 Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0
 - Midsummer Sky Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0
 - Morning Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0
+- Night on the Docks - Sax Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0
 - Reawakening Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0
 - Sapphire Isle Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0
 - Somewhere Sunny (ver 2) Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0
@@ -51,17 +50,16 @@ Licence: https://creativecommons.org/licenses/by/4.0/
 - White Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0
 - Wounded Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0
 
-## Sad (20)
+## Sad (19)
 
+- Blue Feather Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0
 - Death of Kings 2 Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0
 - Disquiet Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0
 - Floating Cities Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0
 - Ghost Processional Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0
 - Impromptu in Quarter Comma Meantone Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0
 - Lasting Hope Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0
-- Loss Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0
 - March of the Mind Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0
-- Night on the Docks - Sax Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0
 - Past the Edge 2 Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0
 - Plaint Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0
 - Quinn's Song: The Dance Begins Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0
@@ -98,4 +96,4 @@ Licence: https://creativecommons.org/licenses/by/4.0/
 
 ## Source
 
-Kevin MacLeod, incompetech.com. Terms as stated on https://incompetech.com/music/royalty-free/faq.html (read 2026-09-28); re-check them before launch.
+Kevin MacLeod, incompetech.com. Terms as stated on https://incompetech.com/music/royalty-free/faq.html (read 2026-09-29); re-check them before launch.
