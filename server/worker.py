@@ -4,7 +4,7 @@ import logging
 import threading
 import time
 from contextlib import contextmanager
-from . import store, media, analysis, engines, retention, auto
+from . import store, media, analysis, engines, retention, auto, library
 from .config import DATA
 
 log = logging.getLogger(__name__)
@@ -79,8 +79,13 @@ def process(job):
                 brief, extra, engine = job['payload']['brief'], {}, job['payload']['engine']
             if engine=='ace':
                 engines.ensure_ace_idle()
-            stage('Composing with instrument samples' if engine=='composer' else 'Generating with ACE-Step')
-            provenance = engines.composer(brief,folder,check) if engine=='composer' else engines.ace(brief,folder,check,stage)
+            stage({'composer':'Composing with instrument samples','ace':'Generating with ACE-Step','library':'Choosing a track from the library'}[engine])
+            if engine=='composer':
+                provenance = engines.composer(brief,folder,check)
+            elif engine=='ace':
+                provenance = engines.ace(brief,folder,check,stage)
+            else:
+                provenance = library.render(brief,folder,check)
             check()
             stage('Finishing audio')
             stats = media.finish_audio(folder/'raw.wav',folder,brief['duration'],check)

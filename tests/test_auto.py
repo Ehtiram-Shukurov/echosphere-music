@@ -4,6 +4,7 @@ import json
 import wave
 import pytest
 from fastapi.testclient import TestClient
+from tests.library_fixture import make_library
 from tests.synthetic import make_flat_video, make_video
 
 KEY = 'k' * 32
@@ -12,10 +13,11 @@ KEY = 'k' * 32
 @pytest.fixture
 def api(tmp_path, monkeypatch):
     monkeypatch.setenv('ECHOSPHERE_DATA', str(tmp_path / 'data'))
+    monkeypatch.setenv('ECHOSPHERE_LIBRARY', str(make_library(tmp_path / 'library')))      # the endpoint plays recorded tracks by default
     for name in ('ECHOSPHERE_API_KEY', 'ECHOSPHERE_ALLOWED_HOSTS', 'ECHOSPHERE_RETENTION_HOURS', 'ECHOSPHERE_MAX_STORAGE_GB', 'ECHOSPHERE_MAX_QUEUE'):
         monkeypatch.delenv(name, raising=False)
-    from server import config, auth, store, retention, media, analysis, detect, auto, engines, worker, app
-    for module in (config, auth, store, retention, media, analysis, detect, auto, engines, worker, app):
+    from server import config, auth, store, retention, media, analysis, detect, auto, library, engines, worker, app
+    for module in (config, auth, store, retention, media, analysis, detect, auto, library, engines, worker, app):
         importlib.reload(module)
     with TestClient(app.app) as client:
         yield client, store, worker, config, retention
@@ -154,6 +156,7 @@ def test_invalid_options_are_refused_before_anything_is_stored(api, tmp_path):
     assert submit(client, clip, input_mode='telepathy').status_code == 422
     assert submit(client, clip, input_mode='robot', mood='joy').status_code == 422
     assert submit(client, clip, input_mode='robot', on_ambiguous='guess').status_code == 422
+    assert submit(client, clip, input_mode='robot', engine='ace').status_code == 422                       # not offered here; never silently ignored
     (tmp_path / 'notes.txt').write_text('x')
     with open(tmp_path / 'notes.txt', 'rb') as f:
         assert client.post('/v1/soundtracks/auto', files={'file': ('notes.txt', f)}, data={'input_mode': 'robot'}).status_code == 415
@@ -176,12 +179,13 @@ def test_retry_with_the_same_key_returns_the_same_job(api, tmp_path):
 
 def test_auto_endpoint_requires_the_key_and_shares_the_queue_limit(tmp_path, monkeypatch):
     monkeypatch.setenv('ECHOSPHERE_DATA', str(tmp_path / 'data'))
+    monkeypatch.setenv('ECHOSPHERE_LIBRARY', str(make_library(tmp_path / 'library')))
     monkeypatch.setenv('ECHOSPHERE_API_KEY', KEY)
     monkeypatch.setenv('ECHOSPHERE_MAX_QUEUE', '1')
     for name in ('ECHOSPHERE_ALLOWED_HOSTS', 'ECHOSPHERE_RETENTION_HOURS', 'ECHOSPHERE_MAX_STORAGE_GB'):
         monkeypatch.delenv(name, raising=False)
-    from server import config, auth, store, retention, media, analysis, detect, auto, engines, worker, app
-    for module in (config, auth, store, retention, media, analysis, detect, auto, engines, worker, app):
+    from server import config, auth, store, retention, media, analysis, detect, auto, library, engines, worker, app
+    for module in (config, auth, store, retention, media, analysis, detect, auto, library, engines, worker, app):
         importlib.reload(module)
     clip = gold(tmp_path)
     with TestClient(app.app) as client:
@@ -286,3 +290,56 @@ def test_auto_retry_still_validates_upload_size_and_type(api, monkeypatch):
     assert post('clip.mp4', b'x' * 11).status_code == 413
     assert post('clip.mp4', b'').status_code == 400
     assert post('clip.txt', b'input').status_code == 415
+
+
+def test_default_engine_plays_a_library_track_and_keeps_its_credit(api, tmp_path):
+    import subprocess
+    client, store, worker, config, _ = api
+    r = submit(client, gold(tmp_path), input_mode='robot')
+    id = run(store, worker)
+    done = status(client, id)
+    assert done['state'] == 'complete', done.get('error')
+    prov = done['result']['provenance']
+    assert prov['engine'] == 'library' and done['options']['engine'] == 'library'
+    assert prov['track']['credit'] in prov['track']['credit'] and prov['track']['id'].startswith(done['result']['mood']['used'] + '/')
+    assert prov['selection']['seed'] == done['result']['brief']['seed']
+    # the credit must be inside the finished files, not only in the JSON
+    for name in ('soundtrack.wav', 'soundtrack.mp4'):
+        out = subprocess.run(['ffprobe', '-v', 'error', '-show_entries', 'format_tags', '-of', 'json', str(config.DATA / 'jobs' / id / name)], capture_output=True, text=True).stdout
+        assert 'Kevin MacLeod (incompetech.com)' in out, name
+    assert done['stages'][5]['code'] == 'composing' and done['stages'][5]['state'] == 'done'      # library selection counts as that stage
+
+
+def test_library_engine_is_refused_up_front_when_it_cannot_serve(api, tmp_path):
+    client, store, worker, config, _ = api
+    manifest = json.loads((config.LIBRARY_DIR / 'manifest.json').read_text())
+    for t in manifest['tracks']:
+        t['eligible'] = t['eligible'] and t['mood'] != 'calm'
+    (config.LIBRARY_DIR / 'manifest.json').write_text(json.dumps(manifest))
+    clip = gold(tmp_path)
+    refused = submit(client, clip, input_mode='robot', mood='calm')
+    assert refused.status_code == 409 and 'no approved calm tracks' in refused.json()['detail']
+    assert client.get('/v1/videos').json() == []                                  # nothing was stored
+    assert submit(client, clip, input_mode='robot', mood='warm').status_code == 202
+    (config.LIBRARY_DIR / 'manifest.json').unlink()
+    empty = submit(client, clip, input_mode='robot', mood='warm')
+    assert empty.status_code == 409 and 'library is empty or missing' in empty.json()['detail']
+
+
+def test_composer_is_still_available_on_request(api, tmp_path):
+    client, store, worker, *_ = api
+    submit(client, gold(tmp_path), input_mode='robot', engine='composer')
+    done = status(client, run(store, worker))
+    assert done['state'] == 'complete', done.get('error')
+    assert done['result']['provenance']['engine'] == 'composer'
+
+
+def test_a_mood_that_becomes_empty_after_acceptance_fails_with_a_code(api, tmp_path):
+    client, store, worker, config, _ = api
+    submit(client, gold(tmp_path), input_mode='robot')                             # accepted while the library can serve it
+    manifest = json.loads((config.LIBRARY_DIR / 'manifest.json').read_text())
+    for t in manifest['tracks']:
+        t['eligible'] = False
+    (config.LIBRARY_DIR / 'manifest.json').write_text(json.dumps(manifest))
+    done = status(client, run(store, worker))
+    assert done['state'] == 'failed' and done['result']['error_code'] == 'library_empty'

@@ -71,7 +71,8 @@ Multipart form fields:
 | `focus` | JSON array of focus points | Required for `focus`, refused otherwise. Same points as `/v1/videos/{id}/analysis`; timestamps must not exceed the imported video duration. |
 | `mood` | `auto` (default), `warm`, `calm`, `sad`, `anger` | An explicit mood overrides the reading and is recorded as such. |
 | `on_ambiguous` | `fail` (default), `best_guess` | What to do when `mood=auto` and the colours do not agree. |
-| `seed` | integer, default 42 | Same input and seed give the same composition. |
+| `engine` | `library` (default), `composer` | `library` plays a recorded, licensed track for the mood (see `MUSIC_LIBRARY.md`). `composer` generates music with the instrument composer. Any other value is refused with 422. |
+| `seed` | integer, default 42 | Same input and seed give the same track (library) or composition (composer). |
 
 Input modes:
 
@@ -88,7 +89,7 @@ Mood policy. With `mood=auto` the mood comes from a fixed colour-palette rule ov
 
 `result.mood` is always `{used, observed, source}` with `source` one of `observed`, `override`, `best_guess`. `analysis.palette_scores` are relative colour shares from a heuristic rule. **They are not calibrated probabilities**, and the response says so.
 
-Failed jobs stay inspectable. `result.error_code` is one of `sphere_not_reliable`, `ambiguous_mood`, or `invalid_focus`, and `error` holds a readable message. Focus duration is checked after import, so out-of-duration points produce an asynchronous `invalid_focus` failure. A point exactly at the imported duration is allowed. Other failures (bad media, timeouts) have an `error` and no code. Failed or cancelled automatic imports also mark the source video as failed; a later analysis or generation failure leaves an already imported video ready.
+Failed jobs stay inspectable. `result.error_code` is one of `sphere_not_reliable`, `ambiguous_mood`, `invalid_focus`, or `library_empty` (the library had no approved track for the mood when the job ran), and `error` holds a readable message. Focus duration is checked after import, so out-of-duration points produce an asynchronous `invalid_focus` failure. A point exactly at the imported duration is allowed. Other failures (bad media, timeouts) have an `error` and no code. Failed or cancelled automatic imports also mark the source video as failed; a later analysis or generation failure leaves an already imported video ready.
 
 ### Sphere detection output (robot mode)
 
@@ -101,3 +102,13 @@ These exist for failed robot jobs too, so a person can see what was selected bef
 Detection metrics are heuristics, not probabilities: `coverage` (share of sampled frames with a sphere), `quality` (mean relative match score, 0 to 1), `ambiguous_fraction` (share of frames where a different region scored almost as well), `jitter` (path roughness in sphere radii) and `uncertainty_index` (0 confident to 1 unreliable, a blend of those). A selection is refused when coverage is below 0.7, quality below 0.35, ambiguous_fraction above 0.35, jitter above 0.12, or the sphere is lost for over two seconds. These limits were set by hand and checked only on the clips listed in `docs/VALIDATION.md`.
 
 Example client: `python scripts/auto_example.py video.mp4 --mode robot`. Retrying a request with the same `Idempotency-Key` and the same file and options returns the original job without saving another video. Existing-job lookup and content verification happen before persistent-storage and queue-capacity checks, so matching retries still work at capacity. Multipart request parsing can still use temporary disk space. File type, size and nonempty checks still apply; the same key with different valid input returns 409.
+
+### Music library engine
+
+With `engine=library` (the default for this endpoint) the soundtrack is a real recording from `music-library/<mood>/`, chosen by a seeded random pick among approved tracks long enough for the video, cut from its start, levelled to -20 LUFS and finished like every other engine. The result reports what was played:
+
+- `result.provenance.engine` is `library`; `provenance.track` has `title`, `artist`, `source`, `license`, `credit`, `edit_note`, `duration` and `listened` (whether a person approved it); `provenance.selection` records the seed, the candidate counts and whether the track had to be looped; `provenance.gain_db` and `measured_lufs` record the level change; `provenance.warnings` lists anything unusual (a looped track, a level correction beyond the limit).
+- The track's credit line is written into the metadata of the exported `soundtrack.wav` and `soundtrack.mp4`. The credit must also be shown wherever the product uses the music.
+- If the library is missing or empty, or has no approved track for a mood you named, the request is refused with **409** before anything is stored. With `mood=auto` the mood is only known after analysis, so an empty mood fails the job with `library_empty` instead.
+- `GET /health` (with the key) adds `engines.library` and `library_tracks` (approved tracks per mood).
+- The older `POST /v1/soundtracks` route now also accepts `engine=library`; its default is still `composer`.

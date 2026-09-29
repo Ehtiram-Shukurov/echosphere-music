@@ -28,9 +28,12 @@ class AutoFailure(Exception):
         self.code, self.details = code, details or {}
 
 
+PHASE_ALIASES = {'Choosing a track from the library': 'Composing with instrument samples'}     # the same stage, for the library engine
+
+
 def stage_progress(job):
     """Which stage an auto job is in, for the API."""
-    phase = job['phase']
+    phase = PHASE_ALIASES.get(job['phase'], job['phase'])
     order = [label for _, label in STAGES]
     if job['state'] == 'complete':
         current = len(STAGES)

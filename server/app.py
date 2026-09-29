@@ -11,7 +11,7 @@ from fastapi import FastAPI, File, Form, Header, HTTPException, Request, UploadF
 from pydantic import ValidationError
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from . import auth, auto, retention, store
+from . import auth, auto, library, retention, store
 from .analysis import musical_brief
 from .config import DATA, ROOT, MAX_BYTES, OLLAMA_URL, OLLAMA_MODEL, ACE_URL, ACE_KEY, ALLOWED_HOSTS
 from .models import AnalysisRequest, AutoOptions, SoundtrackRequest
@@ -142,7 +142,7 @@ async def health(request: Request):
         chromium = Path(p.chromium.executable_path).is_file()
     return {'status':'ok','worker_online':store.worker_online(),
             'ffmpeg':bool(shutil.which('ffmpeg') and shutil.which('ffprobe')),
-            'engines':{'composer':chromium,'ace':music is not None},
+            'engines':{'composer':chromium,'ace':music is not None,'library':library.available()},'library_tracks':library.counts(),
             'vision':{'model':OLLAMA_MODEL,'ready':bool(vision and any(m.get('name')==OLLAMA_MODEL for m in vision.get('models',[])))}}
 
 
@@ -168,6 +168,15 @@ async def upload_digest(file: UploadFile):
         return digest.hexdigest()
     finally:
         await file.seek(0)
+
+
+def require_library(mood):
+    """Refuse before anything is stored if the recorded-track library cannot serve the request."""
+    have = library.counts()
+    if not any(have.values()):
+        raise HTTPException(409,'The music library is empty or missing. Add tracks and build its manifest (docs/MUSIC_LIBRARY.md), or choose engine=composer.')
+    if mood and not have[mood]:
+        raise HTTPException(409,f'The music library has no approved {mood} tracks. Approved tracks per mood: {have}.')
 
 
 def auto_fingerprint(digest, options):
@@ -228,11 +237,11 @@ async def upload_video(file: UploadFile = File(...)):
 
 @app.post('/v1/soundtracks/auto',status_code=202)
 async def create_auto_soundtrack(file: UploadFile = File(...), input_mode: str = Form(...), mood: str = Form('auto'),
-                                 on_ambiguous: str = Form('fail'), seed: int = Form(42), focus: str|None = Form(None),
+                                 on_ambiguous: str = Form('fail'), engine: str = Form('library'), seed: int = Form(42), focus: str|None = Form(None),
                                  idempotency_key: str|None = Header(default=None)):
     """Upload a video and get a soundtrack in one queued job. Returns immediately with a job ID to poll."""
     try:
-        options = AutoOptions(input_mode=input_mode,mood=mood,on_ambiguous=on_ambiguous,seed=seed,
+        options = AutoOptions(input_mode=input_mode,mood=mood,on_ambiguous=on_ambiguous,engine=engine,seed=seed,
                               focus=json.loads(focus) if focus else None).model_dump()
     except json.JSONDecodeError as e:
         raise HTTPException(422,'focus must be a JSON array of focus points.') from e
@@ -252,6 +261,8 @@ async def create_auto_soundtrack(file: UploadFile = File(...), input_mode: str =
                 if old['payload'].get('fingerprint') != fingerprint:
                     raise HTTPException(409,'This idempotency key was already used for different input.')
                 return {'id':old['id'],'video_id':old['video_id'],'state':old['state'],'status_url':f'/v1/soundtracks/{old["id"]}'}
+        if options['engine']=='library':
+            require_library(None if options['mood']=='auto' else options['mood'])
         id, digest = await save_upload(file)
         fingerprint = auto_fingerprint(digest, options)
         job = queue(id,'soundtrack',{'auto':True,'options':options,'fingerprint':fingerprint},idempotency_key)
@@ -348,6 +359,8 @@ def create_soundtrack(request: SoundtrackRequest, idempotency_key: str|None = He
         brief = musical_brief(row,row['analysis'],request.model_dump())
     except ValueError as e:
         raise HTTPException(409,str(e)) from e
+    if request.engine=='library':
+        require_library(brief['mood'])
     return queue(row['id'],'soundtrack',{**request.model_dump(),'brief':brief,'analysis_id':row['analysis']['job_id']},idempotency_key)
 
 

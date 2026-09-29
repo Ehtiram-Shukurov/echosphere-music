@@ -21,6 +21,8 @@ def main():
     p.add_argument('--focus', type=Path, help='JSON array of focus points (mode=focus)')
     p.add_argument('--mood', default='auto', choices=['auto', 'warm', 'calm', 'sad', 'anger'])
     p.add_argument('--on-ambiguous', default='fail', choices=['fail', 'best_guess'])
+    p.add_argument('--engine', default='library', choices=['library', 'composer'],
+                   help='library: play a recorded, licensed track; composer: generate with the instrument composer')
     p.add_argument('--seed', type=int, default=42)
     p.add_argument('--url', default='http://127.0.0.1:8765')
     p.add_argument('--key-env', default='ECHOSPHERE_API_KEY')
@@ -28,7 +30,7 @@ def main():
     a = p.parse_args()
     a.output.mkdir(parents=True, exist_ok=True)
     key = os.environ.get(a.key_env, '')
-    data = {'input_mode': a.mode, 'mood': a.mood, 'on_ambiguous': a.on_ambiguous, 'seed': str(a.seed)}
+    data = {'input_mode': a.mode, 'mood': a.mood, 'on_ambiguous': a.on_ambiguous, 'engine': a.engine, 'seed': str(a.seed)}
     if a.focus:
         data['focus'] = a.focus.read_text()
     started = time.monotonic()
@@ -67,6 +69,13 @@ def main():
                 (a.output / name).write_bytes(c.get(f'/v1/videos/{s["video_id"]}{path}').content)
         m = s['result']['mood']
         print(f'\nDone in {time.monotonic() - started:.1f}s. Mood {m["used"]} (source: {m["source"]}). Saved to {a.output.resolve()}')
+        provenance = s['result']['provenance']
+        if provenance.get('track'):
+            t = provenance['track']
+            print(f'Played: {t["title"]} (a {t["duration"]:.0f} s track, level change {provenance["gain_db"]:+.1f} dB)')
+            print(f'Credit: {t["credit"]}. {t["edit_note"]}')
+            for warning in provenance['warnings']:
+                print('Warning:', warning)
 
 
 if __name__ == '__main__':
