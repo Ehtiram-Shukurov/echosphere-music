@@ -135,7 +135,7 @@ def test_all_mood_scores_fit_supported_durations():
             page=browser.new_page()
             page.add_init_script('window.requestAnimationFrame=()=>0;')
             page.route('**/*',lambda route:route.continue_() if route.request.url.startswith(('file:','data:')) else route.abort())
-            page.goto((ROOT/'index.html').as_uri())
+            page.goto((ROOT/'music-page.html').as_uri())
             page.add_script_tag(path=str(ROOT/'web/video-score.js'))
             scores=page.evaluate('''() => ['warm','calm','sad','anger'].flatMap(mood=>[10,10.005,30,60].map(duration=>{
               const brief={mood,duration,tempo:moods[mood].tempo,energy:.3,brightness:.5,seed:42,energy_curve:[{time:0,energy:.3}]};

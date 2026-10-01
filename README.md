@@ -6,7 +6,7 @@ Bring a reference track and either let the page read its mood automatically or p
 
 ## Running it
 
-It's one HTML file with everything embedded — instrument samples included, no build step, no server, no external script dependencies besides Google Fonts. Open `index.html` directly in a browser, or visit the deployed page.
+It's one HTML file with everything embedded — instrument samples included, no build step, no server, no external script dependencies besides Google Fonts. Open `music-page.html` directly in a browser, or visit the deployed page.
 
 ## Instrument credits
 
@@ -16,7 +16,7 @@ Instrument recordings from [tonejs-instruments by Nathaniel Brosowsky](https://g
 
 **Start with the [complete guide](docs/GUIDE.md):** what was built, how it works, how to use it and how to test it, in plain language.
 
-- **`index.html`** is the standalone music page above. It is unchanged and is what GitHub Pages serves.
+- **`music-page.html`** is the standalone music page above (formerly `index.html`, content unchanged). **`index.html`** now just opens the video page `video-music/`, which is what GitHub Pages serves.
 - **Video-to-music.** Give it a video of the EchoSphere robot and it finds the sphere, reads its colours to choose a mood, composes music of the same length, and returns a WAV and an MP4. The one-call endpoint is `POST /v1/soundtracks/auto`; the older manual route (`video.html`, or `/v1/videos` then `/analysis` then `/v1/soundtracks`) still works.
 - **Runs locally** with `python run_local.py` ([Local setup](docs/LOCAL_SETUP.md)), or on a server behind an access key ([Hosting](docs/HOSTING.md), [Oracle guide](docs/DEPLOY_ORACLE.md)). A demo server exists; where it runs and how it is billed is in [Deployment status](docs/DEPLOYMENT_STATUS.md). Its address and key are not published here.
 - **Music library.** By default the soundtrack is now a real, licensed recording picked from `music-library/<mood>/` (not generated music). The tracks (Kevin MacLeod, CC BY 4.0, about 500 MB) are included in the repository with their credits; see [Music library](docs/MUSIC_LIBRARY.md) and [music-library/README.md](music-library/README.md). The credits in `music-library/CREDITS.md` must be shown wherever the music is used.

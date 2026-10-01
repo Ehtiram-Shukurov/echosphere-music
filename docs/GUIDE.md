@@ -294,7 +294,7 @@ The site is down for a few minutes while it rebuilds. To roll back, check out th
 
 **Tests** (`tests/`): 35 tests, described in section 6.3.
 
-**The original music page:** `index.html` (unchanged, still live on GitHub Pages).
+**The original music page:** `music-page.html` (formerly `index.html`, content unchanged; still on GitHub Pages). The site root now opens `video-music/`.
 
 ---
 

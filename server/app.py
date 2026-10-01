@@ -446,7 +446,7 @@ def home():
 
 @app.get('/playground')
 def playground():
-    return FileResponse(ROOT/'index.html')
+    return FileResponse(ROOT/'music-page.html')
 
 
 app.mount('/web',StaticFiles(directory=ROOT/'web'),name='web')

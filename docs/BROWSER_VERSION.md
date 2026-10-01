@@ -2,7 +2,7 @@
 
 A page that runs entirely in the visitor's browser, so it can be hosted on GitHub Pages with **no server, no API and no cloud**. You add a video of the EchoSphere robot. The page finds the sphere, reads a feeling from its light, and plays a song from `music-library/` that matches.
 
-Address once merged: `https://ehtiram-shukurov.github.io/echosphere-music/video-music/`
+Address (live since the merge into `main`; the site root redirects here): `https://ehtiram-shukurov.github.io/echosphere-music/video-music/`
 
 Locally: from the repository root run `python scripts/preview_site.py` and open `http://127.0.0.1:8000/video-music/`. (A web address is required: the page cannot fetch the song list from a double-clicked file. Python's plain `http.server` cannot seek inside audio, so use this script, which behaves like GitHub Pages.)
 

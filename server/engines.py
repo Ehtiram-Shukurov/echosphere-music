@@ -38,7 +38,7 @@ def composer(brief, folder, check):
             page = browser.new_page()
             page.route('**/*', lambda route: route.continue_() if route.request.url.startswith(('file:', 'data:')) else route.abort())
             page.add_init_script('window.requestAnimationFrame = () => 0;')
-            page.goto((ROOT/'index.html').as_uri(), wait_until='load')
+            page.goto((ROOT/'music-page.html').as_uri(), wait_until='load')
             page.add_script_tag(path=str(ROOT/'web/video-score.js'))
             page.evaluate('(brief) => { window.renderTask = {done:false}; renderVideoBrief(brief).then(result => { window.renderTask={done:true,result}; }).catch(e => { window.renderTask={done:true,error:e.message}; }); }', brief)
             end = time.monotonic()+180
