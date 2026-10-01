@@ -144,3 +144,32 @@ New: `tests/test_library.py` (picker, cutting, levelling, credits in metadata, l
 - **The Oracle demo server.** It runs older code, and its container does not include the `music-library` folder, so `engine=library` would be refused there.
 - **How the level correction and fades sound** on real videos, and the seam where a track had to loop (no such case occurred with this library for videos up to 60 s, except tracks shorter than the video, which the picker avoids).
 - **Credits in the product.** The files carry them and `CREDITS.md` lists them, but showing them in the final product is a manual step.
+
+
+## Browser edition (`video-music/`, September 29, 2026)
+
+The video-reading pipeline was ported to JavaScript so it can run on GitHub Pages with no server; see `BROWSER_VERSION.md`. What was checked, and how far that goes:
+
+**Demo validation (one clip, not general reliability).** The demo video was read in the browser code and compared, at 50 sampled times, with the same hand-marked points used for the Python detector:
+
+| Measure | Browser code | Python detector |
+|---|---|---|
+| Sphere found in sampled frames | 100% | 100% |
+| Mean overlap with the hand-marked ellipse (IoU) | 0.85 | 0.82 |
+| Worst-frame overlap | 0.76 | 0.67 |
+| Mood read | Warm (0.87 to 0.93 depending on how the video was decoded) | Warm (0.87) |
+| Time for 50 frames | about 2.7 s in Node, about 6 s in a browser | about 14 s |
+
+The four supplied stills were read as: Warm (0.73 warm, 0.27 anger), Sad (0.90), Anger (0.96), and Calm as **mixed** (calm 0.23, sad 0.78), so the page asks. Python read Warm 0.90, Sad 0.93, Anger 0.93 and Calm as mixed (0.24 / 0.76). The Warm still reads with more Anger share in the browser than in Python; the mood is the same.
+
+**Ported logic checked against the original.** The colour rule was run on the same pixel sets as `server/analysis.py` and agreed within 0.02 on all eight cases, including its quirk that a pale-violet reading can give a "share" above 1 (pale pixels are counted twice); that quirk was kept for parity.
+
+**Bugs found and fixed while building it.**
+- Several overlapping circles inside one textured glass ball were counted as rival objects, so the pale Calm image was rejected. Overlapping candidates are now one object. A first attempt (prefer the enclosing circle when scores are close) removed the real sphere in the demo's early frames and was dropped, because the margin between right and wrong was about 1 to 2 points of score.
+- Frames were read from the visible video, so after dozens of seeks the picture on screen could disagree with the outline drawn over it. Frames now come from a hidden copy.
+- The song drifted away from the video on a server without range requests; drift correction was made gentler (it no longer interrupts a seek in progress) and the tests use a range-capable server like GitHub Pages.
+- The Calm sample landed just under the server's Calm/Sad "mixed" cutoff (0.22) once the video was compressed, so it was silently read as Sad. This page asks from 0.16 (Sad sample measured about 0.10; Calm sample 0.22 to 0.26). That is tuned on two samples, so treat it as a cautious default and not a measured optimum.
+
+**Tests.** 23 JavaScript unit tests and 8 real-browser tests (see `BROWSER_VERSION.md`), all passing on Windows, in Chromium. A separate run against the real demo video in the same browser covered every path listed there, plus a check that the song stays within about 0.1 s of the video and follows a jump to 7 s within 0.02 s.
+
+**Not validated.** Any real robot footage other than the demo and the four stills; Firefox and Safari; real phones (only a phone-sized window); H.264 decoding in the automated tests (the demo MP4 was checked by hand); long videos (60 s or more) end to end in a browser; how the songs and levelling sound on real videos; the page on the live GitHub Pages address (it is not merged yet).

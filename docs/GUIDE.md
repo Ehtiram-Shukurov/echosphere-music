@@ -329,7 +329,19 @@ The site is down for a few minutes while it rebuilds. To roll back, check out th
 
 ---
 
-## 13. Words used in this guide
+## 13. Update: a version that runs only on GitHub Pages
+
+*Added after the team said: no cloud, no API, only GitHub, with the video detection we already had choosing a song.*
+
+**What it is.** `video-music/` is a web page that does the whole job inside the visitor's browser: add a video, it finds the sphere, reads the feeling from its light, and plays a song from the music library. There is no server, so it can be hosted on GitHub Pages. The video never leaves the device.
+
+**How it was built.** The sphere finder and the colour rule were ported from Python to JavaScript, then checked against the Python versions on the same demo video and stills. On the demo the browser finds the sphere in every frame and matches the hand-marked outline better than the Python one did (0.85 vs 0.82). A visible green outline shows what was read.
+
+**What to remember.** It is only as good as the colour rule: Calm versus Sad is still the weak spot, so when the light mixes them the page asks. It has been tried on one real demo video, four still images and synthetic scenes, in Chromium. Details and limits: [BROWSER_VERSION.md](BROWSER_VERSION.md).
+
+---
+
+## 14. Words used in this guide
 
 - **API:** a way for one program to ask another to do something over the internet. Here: "make a soundtrack from this video."
 - **Job:** one request being worked on. You get its `id` at once and check back later.

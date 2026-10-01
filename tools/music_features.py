@@ -140,4 +140,12 @@ def analyze(path):
         **key,
     }
     features.update(head_loudness(path))
+    # Loudness of just the first 10 and 30 seconds too: the intro is often quieter than the first minute, and a video
+    # only hears as much of the track as it is long. None when that stretch is silent.
+    for seconds in (10, 30):
+        try:
+            value = head_loudness(path, seconds)['lufs']
+        except Exception:
+            value = None
+        features[f'lufs_{seconds}'] = value if value is not None and math.isfinite(value) else None
     return features
