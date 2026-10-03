@@ -27,7 +27,8 @@
   // frame: {data: RGBA bytes, width, height}; ellipse: {cx, cy, rx, ry} in pixels of that frame.
   function readPalette(frame, ellipse) {
     const { data, width, height } = frame;
-    const rx = Math.max(1, ellipse.rx * MASK_FRACTION), ry = Math.max(1, ellipse.ry * MASK_FRACTION);
+    const shrink = ellipse.full ? 1 : MASK_FRACTION;
+    const rx = Math.max(1, ellipse.rx * shrink), ry = Math.max(1, ellipse.ry * shrink);
     const x0 = Math.max(0, Math.floor(ellipse.cx - rx)), x1 = Math.min(width - 1, Math.ceil(ellipse.cx + rx));
     const y0 = Math.max(0, Math.floor(ellipse.cy - ry)), y1 = Math.min(height - 1, Math.ceil(ellipse.cy + ry));
     let total = 0, warm = 0, anger = 0, sad = 0, calm = 0, pale = 0, paleSad = 0, pixels = 0;
@@ -35,7 +36,7 @@
       const dy = (y - ellipse.cy) / ry;
       for (let x = x0; x <= x1; x++) {
         const dx = (x - ellipse.cx) / rx;
-        if (dx * dx + dy * dy > 1) continue;
+        if (!ellipse.full && dx * dx + dy * dy > 1) continue;
         pixels++;
         const i = (y * width + x) * 4;
         const [h, s, v] = rgbToHsv(data[i], data[i + 1], data[i + 2]);
