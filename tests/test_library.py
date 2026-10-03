@@ -3,6 +3,7 @@ import importlib
 import json
 import subprocess
 import wave
+from pathlib import Path
 import pytest
 from tests.library_fixture import make_library
 
@@ -110,3 +111,33 @@ def test_a_track_too_quiet_to_level_is_boosted_only_to_the_limit_and_says_so(tmp
     prov = library.render({'mood': 'sad', 'duration': 10.0, 'seed': 1}, folder, lambda: None)
     assert prov['gain_db'] == library.MAX_BOOST_DB
     assert any('limit' in w and 'quieter' in w for w in prov['warnings'])
+
+
+def test_hash_matches_the_browser_hash_vectors():
+    """_hash32 must stay bit-identical to EchoLibrary.hash32: the same seed has to
+    pick the same track on the server and in the browser."""
+    from server import library
+    assert library._hash32('clip:7|warm') == 2760582269
+    assert library._hash32('a:0|sad') == 3462567549
+    assert library._hash32('12345|calm') == 1180301838
+    assert library._hash32('My Video.mp4|123456|10.00:3|anger') == 654948314
+    assert library._hash32('x') == 794621484
+
+
+def test_track_choice_matches_browser(monkeypatch):
+    """Same fixture, same (mood, duration, seed) -> same track as the browser.
+    The JS twin is tests/js/choose-parity.test.mjs; the two must never disagree."""
+    from server import library
+    fixture = json.loads(Path(__file__).resolve().parent.joinpath('fixtures', 'choose-parity.json').read_text())
+    monkeypatch.setattr(library, 'playable', lambda manifest=None: [t for t in fixture['tracks'] if t['eligible']])
+    cases = [
+        ('warm', 60.0, 'clip:7', 't2', False),
+        ('warm', 60.0, 'a:0', 't1', False),
+        ('sad', 10.0, 'x', 't4', False),
+        ('warm', 5000.0, 'clip:7', 't2', True),   # nothing long enough: the longest is looped
+        ('warm', 10.0, 'My Video.mp4|123456|10.00:3', 't3', False),
+    ]
+    for mood, duration, seed, track_id, looped in cases:
+        track, how = library.choose(mood, duration, seed)
+        assert track['id'] == track_id, (mood, duration, seed)
+        assert how['looped'] == looped
