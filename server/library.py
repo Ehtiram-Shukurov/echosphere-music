@@ -63,8 +63,13 @@ def available():
 
 
 def _start(track):
-    """Skip leading digital silence, but keep a quarter second so a soft attack is not clipped."""
-    return max(0.0, float(track.get('features', {}).get('lead_silence_s', 0)) - .25)
+    """Skip leading digital silence, but keep a quarter second so a soft attack is not clipped;
+    then snap forward to the next beat so the music starts on-beat (when the manifest has beats)."""
+    start = max(0.0, float(track.get('features', {}).get('lead_silence_s', 0)) - .25)
+    beats = [b for b in ((track.get('features') or {}).get('beats') or [])
+             if isinstance(b, (int, float)) and math.isfinite(b)]
+    cands = [b for b in beats if b >= start]
+    return min(cands) if cands else start
 
 
 def _hash32(text):

@@ -50,6 +50,14 @@ test('leading silence is skipped but a soft attack is kept', () => {
   assert.equal(Lib.startOf({ features: {} }), 0);
 });
 
+test('the start snaps forward to the next beat when the manifest has beats', () => {
+  const withBeats = (silence, beats) => track('x', 'warm', 100, { features: { lead_silence_s: silence, beats } });
+  assert.equal(Lib.startOf(withBeats(1.0, [0.2, 0.7, 1.2, 1.7, 2.2])), 1.2);   // 0.75 -> next beat
+  assert.equal(Lib.startOf(withBeats(0.1, [0.2, 0.7])), 0.2);
+  assert.equal(Lib.startOf(withBeats(1.0, [])), 0.75);                          // no beats: plain silence skip
+  assert.equal(Lib.startOf(withBeats(2.0, [0.1, 0.3])), 1.75);                 // no beat at or after the start
+});
+
 test('the level change uses the loudness of the stretch that plays', () => {
   const t = track('x', 'warm', 300, { features: { lufs_10: -34, lufs_30: -26, lufs: -22 } });
   assert.equal(Lib.loudnessOf(t, 10), -34);

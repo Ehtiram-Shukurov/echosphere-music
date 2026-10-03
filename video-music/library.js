@@ -32,9 +32,14 @@
     return out;
   }
 
-  // Start after any digital silence, keeping a quarter second so a soft attack is not clipped.
+  // Start after any digital silence, keeping a quarter second so a soft attack is not clipped,
+  // then snap forward to the next beat so the music starts on-beat (when the manifest has beats).
   function startOf(track) {
-    return Math.max(0, ((track.features && track.features.lead_silence_s) || 0) - .25);
+    const start = Math.max(0, ((track.features && track.features.lead_silence_s) || 0) - .25);
+    const beats = ((track.features || {}).beats || []).filter((b) => typeof b === 'number' && Number.isFinite(b));
+    let best = Infinity;
+    for (const b of beats) if (b >= start && b < best) best = b;
+    return best === Infinity ? start : best;
   }
 
   // The loudness of the stretch that will actually play, from the closest measured excerpt (10 s, 30 s or 60 s).
