@@ -8,7 +8,7 @@ const MAX_SIDE = 320, MAX_SAMPLES = 100, SAMPLES_PER_SECOND = 5;
 
 const video = $('video'), audio = $('song'), overlay = $('overlay'), stage = document.querySelector('.video-stage');
 const state = {
-  manifest: null, run: 0, busy: false, file: null, url: null, duration: 0, frames: [], report: null, manual: null,
+  manifest: null, run: 0, busy: false, file: null, url: null, duration: 0, frames: [], report: null, manual: null, sceneFallback: false,
   drawing: false, draft: null, decision: null, mood: null, seed: '', variation: 0, track: null, pick: null, gain: null,
 };
 let audioCtx = null, nodes = null, envelopeTimer = 0;
@@ -116,7 +116,7 @@ function seek(el, t) {
 function resetForNewVideo() {
   stop();
   state.run++;
-  Object.assign(state, { frames: [], report: null, manual: null, drawing: false, draft: null, decision: null, timeline: null, mood: null, variation: 0, track: null, pick: null, gain: null });
+  Object.assign(state, { frames: [], report: null, manual: null, sceneFallback: false, drawing: false, draft: null, decision: null, timeline: null, mood: null, variation: 0, track: null, pick: null, gain: null });
   stage.classList.remove('drawing');
   $('stageRoot').classList.remove('has-video');
   for (const id of ['videoPanel', 'feelingPanel', 'songPanel', 'drawHint', 'wholeButton', 'autoButton', 'timelineWrap']) show(id, false);
@@ -211,6 +211,7 @@ async function findSphere(token) {
 
 function focusFor(t) {
   if (state.manual) return state.manual;
+  if (state.sceneFallback) return { cx: .5, cy: .5, rx: .5, ry: .5 };   // the whole scene
   return state.report && state.report.status === 'ok' ? EchoDetect.focusAt(state.report, t) : null;
 }
 
@@ -263,6 +264,7 @@ function presentAnalysis() {
   show('wholeButton', false); show('autoButton', false); show('drawHint', false);
   state.drawing = false; stage.classList.remove('drawing');
   if (!state.manual && report.status !== 'ok') {
+    if (trySceneFallback()) return;   // no sphere, but the scene itself reads clearly — use it, labeled as such
     $('detectionNote').textContent = `The sphere could not be found reliably. ${report.reasons.join(' ')} Mark it yourself and the reading will continue from there.`;
     message('The sphere could not be found reliably. Mark it yourself to continue.', true);
     show('feelingPanel', false); show('songPanel', false);
@@ -285,6 +287,22 @@ function presentAnalysis() {
   $('videoPanel').scrollIntoView({ behavior: calmMode ? 'auto' : 'smooth', block: 'start' });
 }
 
+// No sphere was found. If the scene itself reads clearly, use that instead of stopping:
+// the pipeline reads video mood, and the sphere is one way to read it, not the only one.
+// An unclear scene keeps the old behavior (mark the sphere yourself).
+function trySceneFallback() {
+  const perFrame = state.frames.map((f) => EchoMood.readPalette(f, { cx: f.width / 2, cy: f.height / 2, rx: f.width / 2, ry: f.height / 2 }));
+  if (!EchoMood.decide(EchoMood.meanScores(perFrame)).mood) return false;
+  state.sceneFallback = true;
+  $('detectionNote').textContent = 'No sphere was found, so the whole scene was read instead (green outline). If there is a sphere in the video, mark it yourself.';
+  readMood();
+  showFeeling();
+  message('Ready. You can change the feeling or ask for another song at any time.');
+  drawOverlay();
+  $('videoPanel').scrollIntoView({ behavior: calmMode ? 'auto' : 'smooth', block: 'start' });
+  return true;
+}
+
 const WORDS = EchoMood.COLOUR_WORDS;
 
 function showFeeling() {
@@ -293,7 +311,8 @@ function showFeeling() {
   renderTimeline();
   if (d.mood) {
     state.mood = d.mood;
-    say($('interpretation'), `The light inside the sphere is mostly ${WORDS[d.mood]}, which reads as `, { strong: NAMES[d.mood] }, '. Not right? Choose another feeling.');
+    if (state.sceneFallback) say($('interpretation'), `No sphere was found, so the whole scene was read. It is mostly ${WORDS[d.mood]}, which reads as `, { strong: NAMES[d.mood] }, '. Not right? Choose another feeling.');
+    else say($('interpretation'), `The light inside the sphere is mostly ${WORDS[d.mood]}, which reads as `, { strong: NAMES[d.mood] }, '. Not right? Choose another feeling.');
   } else {
     state.mood = null;
     const [a, b] = d.ranked;
@@ -314,7 +333,8 @@ function fillDetails() {
     shares.append(make('dt', { textContent: NAMES[k] }), make('dd', {}, Object.assign(make('span', { className: 'bar' }), { style: `width:${Math.round(Math.min(1, d.scores[k]) * 90)}px` }), `${Math.round(d.scores[k] * 100)}%`));
   }
   const where = make('dl', {});
-  if (!state.manual && m) {
+  if (state.sceneFallback) where.append(make('dt', { textContent: 'Region' }), make('dd', { textContent: 'whole scene (no sphere found)' }));
+  else if (!state.manual && m) {
     where.append(make('dt', { textContent: 'Sphere found' }), make('dd', { textContent: `in ${Math.round(m.coverage * 100)}% of ${m.framesSampled} frames` }),
       make('dt', { textContent: 'Uncertainty' }), make('dd', { textContent: `${m.uncertaintyIndex.toFixed(2)} (0 confident, 1 unreliable; a rule of thumb, not a probability)` }));
   } else where.append(make('dt', { textContent: 'Region' }), make('dd', { textContent: 'marked by you' }));
@@ -381,7 +401,8 @@ function drawOverlay() {
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, w, h);
   if (!$('showOverlay').checked && !state.drawing) return;
   const line = Math.max(2, 2 * dpr), t = video.currentTime;
-  if (state.manual) drawEllipse(ctx, state.manual, w, h, '#6fe08a', line);
+  if (state.sceneFallback) drawEllipse(ctx, { cx: .5, cy: .5, rx: .5, ry: .5 }, w, h, '#6fe08a', line);
+  else if (state.manual) drawEllipse(ctx, state.manual, w, h, '#6fe08a', line);
   else if (state.report && state.report.track.length) {
     const e = EchoDetect.focusAt(state.report, t);
     if (state.report.status === 'ok') {
