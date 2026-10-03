@@ -68,6 +68,10 @@
 /* The timeline marks where the music is: the window under the playhead glows. */
 .tl-seg.playing{box-shadow:0 0 0 2px var(--accent);opacity:1}
 
+/* Export: a progress row that appears while the video plays itself into a file. */
+.export-row{display:flex;align-items:center;gap:14px;margin-top:16px}
+.export-progress{flex:1;margin:0}
+
 /* Empty state: what happens, at a glance. Hidden once a video is loaded. */
 .steps-preview{list-style:none;display:flex;gap:28px;margin:30px 0 0;padding:0;flex-wrap:wrap;justify-content:center}
 .steps-preview li{display:flex;flex-direction:column;gap:7px;max-width:190px;text-align:center;font-size:12px;color:#b4abbf;line-height:1.6}
