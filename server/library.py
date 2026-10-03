@@ -8,6 +8,7 @@ faded by the same finishing step every engine goes through. The track's credit l
 written into the audio's metadata so it travels with every exported WAV and MP4.
 """
 import json
+import math
 from . import auto, config, media
 
 MOODS = ('warm', 'calm', 'sad', 'anger')
@@ -83,17 +84,88 @@ def _hash32(text):
     return h & 0xFFFFFFFF
 
 
+# Feature order mirrors tools/build_music_manifest.py FEATURES.
+_AFFECT_FEATURES = ('onset_rate', 'rms_db', 'centroid_hz', 'low_ratio', 'flux_mean',
+                    'mode_margin', 'dynamic_range_db', 'tempo_bpm', 'pulse_clarity')
+
+# Ideal (valence, arousal, energy) per mood, in library-relative z-space. Tuned by ear, not physics;
+# keep in sync with MOOD_TARGETS in video-music/library.js.
+_MOOD_TARGETS = {'warm': (1.0, 1.0, 0.8), 'calm': (1.0, -1.0, -0.8),
+                 'sad': (-1.0, -1.0, -0.8), 'anger': (-1.0, 1.0, 1.0)}
+
+# How many of the closest fits the seed may choose among; the rest never play for this mood.
+_SHORTLIST = 3
+
+
+def _has_affect(track):
+    f = track.get('features') or {}
+    return all(isinstance(f.get(k), (int, float)) and math.isfinite(f[k]) for k in _AFFECT_FEATURES)
+
+
+def _vector(features):
+    """Raw feature vector; mirrors _vector() in tools/build_music_manifest.py (log on centroid and flux)."""
+    return [features['onset_rate'], features['rms_db'], math.log(features['centroid_hz']), features['low_ratio'],
+            math.log(features['flux_mean'] + 1), features['mode_margin'], features['dynamic_range_db'],
+            features['tempo_bpm'], features['pulse_clarity']]
+
+
+def _affect_stats(tracks):
+    """Per-feature (mean, population std) over the eligible library, in id order.
+    Sequential sums, exactly like the browser, so both sides agree bit-for-bit."""
+    vecs = [_vector(t['features']) for t in tracks if _has_affect(t)]
+    if not vecs:
+        return None
+    stats = []
+    for i in range(len(_AFFECT_FEATURES)):
+        mean = sum(v[i] for v in vecs) / len(vecs)
+        var = sum((v[i] - mean) ** 2 for v in vecs) / len(vecs)
+        stats.append((mean, math.sqrt(var)))
+    return stats
+
+
+def _affect(track, stats):
+    """(valence, arousal, energy) in library-relative z-space. Valence and arousal mirror
+    judge() in tools/build_music_manifest.py; energy is sheer intensity (loudness + range + tempo)."""
+    z = [(x - mean) / std if std > 1e-9 else 0.0 for x, (mean, std) in zip(_vector(track['features']), stats)]
+    return z[5] + .3 * z[2], (z[0] + z[1] + z[2] + z[4] + .5 * z[7]) / 4.5, (z[1] + z[6] + z[7]) / 3
+
+
+def _ranked(use, mood, stats):
+    """Candidates as (distance, track) pairs, closest fit first, ties broken by id.
+    None when any candidate lacks measured features: the choice then stays uniform."""
+    if stats is None or any(not _has_affect(t) for t in use):
+        return None
+    target = _MOOD_TARGETS[mood]
+    scored = []
+    for t in use:
+        va, ar, en = _affect(t, stats)
+        d = math.sqrt((va - target[0]) ** 2 + (ar - target[1]) ** 2 + (en - target[2]) ** 2)
+        scored.append((d, t['id'], t))
+    scored.sort(key=lambda s: (s[0], s[1]))
+    return [(d, t) for d, _, t in scored]
+
+
 def choose(mood, duration, seed):
-    """Repeatable pick: the same mood, video length and seed always give the same track."""
-    pool = sorted((t for t in playable() if t['mood'] == mood), key=lambda t: t['id'])
+    """Repeatable pick: the same mood, video length and seed always give the same track.
+
+    When every candidate has measured audio features, the seed picks among the closest
+    (valence, arousal, energy) fits for the mood instead of uniformly at random."""
+    eligible = sorted(playable(), key=lambda t: t['id'])
+    pool = [t for t in eligible if t['mood'] == mood]
     if not pool:
         raise LibraryError('library_empty', f'The music library has no approved {mood} tracks. Add some and rebuild the manifest (docs/MUSIC_LIBRARY.md).',
                            {'mood': mood, 'library': counts()})
     fits = [t for t in pool if t['duration'] - _start(t) >= duration + END_MARGIN]
     use = fits or [max(pool, key=lambda t: t['duration'] - _start(t))]
-    pick = use[_hash32(f'{seed}|{mood}') % len(use)]
-    return pick, {'method': 'seeded random choice among approved tracks long enough for the video', 'candidates': len(pool),
-                  'long_enough': len(fits), 'looped': not fits}
+    ranked = _ranked(use, mood, _affect_stats(eligible))
+    if ranked is None:
+        pick = use[_hash32(f'{seed}|{mood}') % len(use)]
+        return pick, {'method': 'seeded random choice among approved tracks long enough for the video', 'candidates': len(pool),
+                      'long_enough': len(fits), 'looped': not fits}
+    shortlist = ranked[:_SHORTLIST]
+    distance, pick = shortlist[_hash32(f'{seed}|{mood}') % len(shortlist)]
+    return pick, {'method': 'seeded pick among the closest (valence, arousal, energy) fits for the mood', 'candidates': len(pool),
+                  'long_enough': len(fits), 'looped': not fits, 'fit_distance': round(distance, 3)}
 
 
 def credit_of(track):

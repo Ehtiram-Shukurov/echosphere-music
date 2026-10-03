@@ -126,18 +126,44 @@ def test_hash_matches_the_browser_hash_vectors():
 
 def test_track_choice_matches_browser(monkeypatch):
     """Same fixture, same (mood, duration, seed) -> same track as the browser.
-    The JS twin is tests/js/choose-parity.test.mjs; the two must never disagree."""
+    The JS twin is tests/js/choose-parity.test.mjs; the two must never disagree.
+    t1 is the bright lively warm track, so it wins warm; t4 is the dark soft one, so it wins sad."""
     from server import library
     fixture = json.loads(Path(__file__).resolve().parent.joinpath('fixtures', 'choose-parity.json').read_text())
     monkeypatch.setattr(library, 'playable', lambda manifest=None: [t for t in fixture['tracks'] if t['eligible']])
     cases = [
-        ('warm', 60.0, 'clip:7', 't2', False),
-        ('warm', 60.0, 'a:0', 't1', False),
-        ('sad', 10.0, 'x', 't4', False),
-        ('warm', 5000.0, 'clip:7', 't2', True),   # nothing long enough: the longest is looped
-        ('warm', 10.0, 'My Video.mp4|123456|10.00:3', 't3', False),
+        # mood, duration, seed, expected id, expected fit distance, looped
+        ('warm', 60.0, 'clip:7', 't2', 2.195, False),
+        ('warm', 60.0, 'a:0', 't1', 0.511, False),
+        ('sad', 10.0, 'x', 't4', 1.183, False),
+        ('warm', 5000.0, 'clip:7', 't2', 2.195, True),   # nothing long enough: the longest is looped
+        ('warm', 10.0, 'seed9', 't1', 0.511, False),
     ]
-    for mood, duration, seed, track_id, looped in cases:
+    for mood, duration, seed, track_id, fit, looped in cases:
         track, how = library.choose(mood, duration, seed)
         assert track['id'] == track_id, (mood, duration, seed)
+        assert how['method'] == 'seeded pick among the closest (valence, arousal, energy) fits for the mood'
+        assert how['fit_distance'] == fit
         assert how['looped'] == looped
+
+
+def test_choice_without_features_falls_back_to_uniform_pick(monkeypatch):
+    """Without measured audio features there is nothing to match on: the choice
+    falls back to the old uniform seeded pick, on both sides."""
+    from server import library
+    monkeypatch.setattr(library, 'playable', lambda manifest=None: [
+        {'id': 'a', 'mood': 'warm', 'duration': 60.0, 'eligible': True, 'features': {}},
+        {'id': 'b', 'mood': 'warm', 'duration': 60.0, 'eligible': True},
+    ])
+    track, how = library.choose('warm', 10.0, 'clip:7')
+    assert track['id'] == 'b'   # _hash32('clip:7|warm') is odd
+    assert how['method'] == 'seeded random choice among approved tracks long enough for the video'
+    assert 'fit_distance' not in how
+
+
+def test_energy_match_is_repeatable_and_varies_with_the_seed(monkeypatch):
+    from server import library
+    fixture = json.loads(Path(__file__).resolve().parent.joinpath('fixtures', 'choose-parity.json').read_text())
+    monkeypatch.setattr(library, 'playable', lambda manifest=None: [t for t in fixture['tracks'] if t['eligible']])
+    assert library.choose('warm', 10.0, 'seed1')[0]['id'] == library.choose('warm', 10.0, 'seed1')[0]['id']
+    assert len({library.choose('warm', 10.0, f'seed{i}')[0]['id'] for i in range(60)}) > 1

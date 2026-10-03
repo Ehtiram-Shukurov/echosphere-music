@@ -53,16 +53,80 @@
     return { db, measured: lufs, limited: db !== wanted, wanted };
   }
 
+  // Feature order mirrors tools/build_music_manifest.py FEATURES.
+  const AFFECT_FEATURES = ['onset_rate', 'rms_db', 'centroid_hz', 'low_ratio', 'flux_mean',
+                           'mode_margin', 'dynamic_range_db', 'tempo_bpm', 'pulse_clarity'];
+  // Ideal (valence, arousal, energy) per mood, in library-relative z-space. Tuned by ear, not physics;
+  // keep in sync with _MOOD_TARGETS in server/library.py.
+  const MOOD_TARGETS = { warm: [1, 1, .8], calm: [1, -1, -.8], sad: [-1, -1, -.8], anger: [-1, 1, 1] };
+  const SHORTLIST = 3;   // how many of the closest fits the seed may choose among
+
+  function hasAffect(t) {
+    const f = t.features || {};
+    return AFFECT_FEATURES.every((k) => typeof f[k] === 'number' && Number.isFinite(f[k]));
+  }
+
+  // Raw feature vector; mirrors _vector() in tools/build_music_manifest.py (log on centroid and flux).
+  function featureVector(f) {
+    return [f.onset_rate, f.rms_db, Math.log(f.centroid_hz), f.low_ratio, Math.log(f.flux_mean + 1),
+            f.mode_margin, f.dynamic_range_db, f.tempo_bpm, f.pulse_clarity];
+  }
+
+  // Per-feature [mean, population std] over the eligible library, in id order.
+  // Sequential sums, exactly like the server, so both sides agree bit-for-bit.
+  function affectStats(tracks) {
+    const vecs = tracks.filter(hasAffect).map((t) => featureVector(t.features));
+    if (!vecs.length) return null;
+    return AFFECT_FEATURES.map((_, i) => {
+      let mean = 0;
+      for (const v of vecs) mean += v[i];
+      mean /= vecs.length;
+      let variance = 0;
+      for (const v of vecs) variance += (v[i] - mean) * (v[i] - mean);
+      return [mean, Math.sqrt(variance / vecs.length)];
+    });
+  }
+
+  // (valence, arousal, energy) in library-relative z-space. Valence and arousal mirror
+  // judge() in tools/build_music_manifest.py; energy is sheer intensity.
+  function affectOf(track, stats) {
+    const v = featureVector(track.features);
+    const z = v.map((x, i) => (stats[i][1] > 1e-9 ? (x - stats[i][0]) / stats[i][1] : 0));
+    return [z[5] + .3 * z[2], (z[0] + z[1] + z[2] + z[4] + .5 * z[7]) / 4.5, (z[1] + z[6] + z[7]) / 3];
+  }
+
+  // Candidates as [distance, track] pairs, closest fit first, ties broken by id.
+  // Null when any candidate lacks measured features: the choice then stays uniform.
+  function rankedByFit(use, mood, stats) {
+    if (!stats || use.some((t) => !hasAffect(t))) return null;
+    const target = MOOD_TARGETS[mood];
+    return use.map((t) => {
+      const [va, ar, en] = affectOf(t, stats);
+      const d = Math.sqrt((va - target[0]) ** 2 + (ar - target[1]) ** 2 + (en - target[2]) ** 2);
+      return [d, t];
+    }).sort((a, b) => a[0] - b[0] || (a[1].id < b[1].id ? -1 : a[1].id > b[1].id ? 1 : 0));
+  }
+
   // Repeatable pick among approved tracks long enough for the video; the longest one is looped only as a last resort.
+  // When every candidate has measured audio features, the seed picks among the closest
+  // (valence, arousal, energy) fits for the mood instead of uniformly at random.
   // `avoid` is a track id to skip when there is any alternative (used by "Another song").
   function choose(manifest, mood, duration, seed, avoid) {
-    const pool = playable(manifest).filter((t) => t.mood === mood).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    const eligible = playable(manifest).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    const pool = eligible.filter((t) => t.mood === mood);
     if (!pool.length) return null;
     const fits = pool.filter((t) => t.duration - startOf(t) >= duration + END_MARGIN);
-    const use = fits.length ? fits : [pool.reduce((best, t) => (t.duration - startOf(t) > best.duration - startOf(best) ? t : best))];
-    let index = hash32(`${seed}|${mood}`) % use.length;
-    if (avoid && use.length > 1 && use[index].id === avoid) index = (index + 1) % use.length;
-    return { track: use[index], candidates: pool.length, longEnough: fits.length, looped: !fits.length };
+    let use = fits.length ? fits : [pool.reduce((best, t) => (t.duration - startOf(t) > best.duration - startOf(best) ? t : best))];
+    if (avoid && use.length > 1) use = use.filter((t) => t.id !== avoid);
+    const ranked = rankedByFit(use, mood, affectStats(eligible));
+    if (!ranked) {
+      const track = use[hash32(`${seed}|${mood}`) % use.length];
+      return { track, candidates: pool.length, longEnough: fits.length, looped: !fits.length, method: 'seeded random choice' };
+    }
+    const shortlist = ranked.slice(0, SHORTLIST);
+    const [distance, track] = shortlist[hash32(`${seed}|${mood}`) % shortlist.length];
+    return { track, candidates: pool.length, longEnough: fits.length, looped: !fits.length,
+             method: 'energy match', fitDistance: Math.round(distance * 1000) / 1000 };
   }
 
   function fadeSeconds(duration) { return Math.min(.6, duration * .06); }
@@ -81,5 +145,5 @@
     return base + track.file.split('/').map(encodeURIComponent).join('/');
   }
 
-  return { MOODS, TARGET_LUFS, MAX_BOOST_DB, MAX_CUT_DB, END_MARGIN, EDIT_NOTE, CREDITS_URL, hash32, playable, counts, startOf, loudnessOf, gainFor, choose, fadeSeconds, envelope, creditLine, urlOf };
+  return { MOODS, TARGET_LUFS, MAX_BOOST_DB, MAX_CUT_DB, END_MARGIN, EDIT_NOTE, CREDITS_URL, hash32, playable, counts, startOf, loudnessOf, gainFor, choose, fadeSeconds, envelope, creditLine, urlOf, hasAffect, affectStats, affectOf, rankedByFit, MOOD_TARGETS };
 });
