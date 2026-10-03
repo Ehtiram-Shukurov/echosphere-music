@@ -252,11 +252,21 @@ function renderTimeline() {
       ariaLabel: `Jump to ${fmt(seg.t0)}: ${label}`,
     });
     el.style.flexBasis = `${Math.max(1.5, (seg.t1 - seg.t0) / total * 100)}%`;
+    el.dataset.t0 = seg.t0; el.dataset.t1 = seg.t1;
     if (seg.mood) el.style.setProperty('--seg', THEME[seg.mood][0]);
     el.addEventListener('click', () => { video.currentTime = Math.min(seg.t0 + .01, Math.max(0, state.duration - .05)); });
     box.append(el);
   }
   show('timelineWrap', true);
+}
+
+// The timeline marks where the music is: the window under the playhead glows.
+function highlightTimeline(t) {
+  const box = $('timeline');
+  if (!box || !box.children.length) return;
+  for (const el of box.children) {
+    el.classList.toggle('playing', t >= Number(el.dataset.t0) && t < Number(el.dataset.t1));
+  }
 }
 
 function presentAnalysis() {
@@ -539,12 +549,13 @@ function paintPlayButton() {
 
 function loop() {
   drawOverlay();
+  highlightTimeline(video.currentTime);
   if (!video.paused && !video.ended) requestAnimationFrame(loop);
 }
 
 video.addEventListener('pause', () => { audio.pause(); isPlaying = false; clearInterval(envelopeTimer); paintPlayButton(); });
 video.addEventListener('ended', () => { audio.pause(); isPlaying = false; clearInterval(envelopeTimer); if (nodes) nodes.env.gain.value = 0; paintPlayButton(); });
-video.addEventListener('seeked', () => { if (state.track && !state.busy) syncAudio(true); drawOverlay(); });
+video.addEventListener('seeked', () => { if (state.track && !state.busy) syncAudio(true); drawOverlay(); highlightTimeline(video.currentTime); });
 video.addEventListener('timeupdate', () => {
   if (state.busy) return;
   $('clock').textContent = `${fmt(video.currentTime)} / ${fmt(state.duration)}`;
