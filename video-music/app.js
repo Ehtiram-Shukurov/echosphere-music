@@ -18,7 +18,11 @@ let audioCtx = null, nodes = null, envelopeTimer = 0;
 const fmt = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
 function message(text, error = false) { $('status').textContent = text; $('status').classList.toggle('error', error); }
 function progress(fraction) { $('progress').hidden = fraction === null; if (fraction !== null) $('progressBar').style.width = `${Math.round(fraction * 100)}%`; }
-function show(id, on) { $(id).hidden = !on; }
+function show(id, on) {
+  const el = $(id), was = el.hidden;
+  el.hidden = !on;
+  if (on && was) { el.classList.remove('rise'); void el.offsetWidth; el.classList.add('rise'); }   // panels rise in once
+}
 // Sets an element's text from plain strings and {strong: '...'} pieces, without ever parsing HTML.
 function say(el, ...parts) {
   el.replaceChildren(...parts.map((p) => (typeof p === 'string' ? document.createTextNode(p) : Object.assign(document.createElement('strong'), { textContent: p.strong }))));
@@ -112,10 +116,10 @@ function seek(el, t) {
 function resetForNewVideo() {
   stop();
   state.run++;
-  Object.assign(state, { frames: [], report: null, manual: null, drawing: false, draft: null, decision: null, mood: null, variation: 0, track: null, pick: null, gain: null });
+  Object.assign(state, { frames: [], report: null, manual: null, drawing: false, draft: null, decision: null, timeline: null, mood: null, variation: 0, track: null, pick: null, gain: null });
   stage.classList.remove('drawing');
   $('stageRoot').classList.remove('has-video');
-  for (const id of ['videoPanel', 'feelingPanel', 'songPanel', 'drawHint', 'wholeButton', 'autoButton']) show(id, false);
+  for (const id of ['videoPanel', 'feelingPanel', 'songPanel', 'drawHint', 'wholeButton', 'autoButton', 'timelineWrap']) show(id, false);
   progress(null);
   setTitle('Your video'); $('soundMeta').textContent = DEFAULT_SUBTITLE;
   if (state.url) URL.revokeObjectURL(state.url);
@@ -216,6 +220,42 @@ function readMood() {
     return EchoMood.readPalette(f, { cx: e.cx * f.width, cy: e.cy * f.height, rx: e.rx * f.width, ry: e.ry * f.height });
   });
   state.decision = EchoMood.decide(EchoMood.meanScores(perFrame));
+  state.timeline = buildTimeline(perFrame);
+}
+
+// The light over time: the same decide() rule, run per window instead of over the whole clip.
+// A null mood in a window means mixed light, shown striped rather than forced into a feeling.
+function buildTimeline(perFrame) {
+  const n = perFrame.length;
+  if (!n) return [];
+  const windows = Math.max(1, Math.min(12, Math.round(state.duration / 2) || 1));
+  const out = [];
+  for (let w = 0; w < windows; w++) {
+    const a = Math.floor(w * n / windows), b = Math.max(a + 1, Math.floor((w + 1) * n / windows));
+    const d = EchoMood.decide(EchoMood.meanScores(perFrame.slice(a, b)));
+    out.push({ t0: state.frames[a].time, t1: state.frames[Math.min(b, n - 1)].time, mood: d.mood, top: d.closest });
+  }
+  return out;
+}
+
+function renderTimeline() {
+  const wrap = $('timelineWrap'), box = $('timeline');
+  box.replaceChildren();
+  if (!state.timeline || !state.timeline.length) { show('timelineWrap', false); return; }
+  const total = Math.max(state.duration, 1e-6);
+  for (const seg of state.timeline) {
+    const label = seg.mood ? NAMES[seg.mood] : `mixed light (closest: ${NAMES[seg.top]})`;
+    const el = make('button', {
+      className: 'tl-seg' + (seg.mood ? '' : ' tl-mixed'),
+      title: `${fmt(seg.t0)} – ${fmt(seg.t1)}: ${label}`,
+      ariaLabel: `Jump to ${fmt(seg.t0)}: ${label}`,
+    });
+    el.style.flexBasis = `${Math.max(1.5, (seg.t1 - seg.t0) / total * 100)}%`;
+    if (seg.mood) el.style.setProperty('--seg', THEME[seg.mood][0]);
+    el.addEventListener('click', () => { video.currentTime = Math.min(seg.t0 + .01, Math.max(0, state.duration - .05)); });
+    box.append(el);
+  }
+  show('timelineWrap', true);
 }
 
 function presentAnalysis() {
@@ -250,6 +290,7 @@ const WORDS = EchoMood.COLOUR_WORDS;
 function showFeeling() {
   const d = state.decision;
   show('feelingPanel', true);
+  renderTimeline();
   if (d.mood) {
     state.mood = d.mood;
     say($('interpretation'), `The light inside the sphere is mostly ${WORDS[d.mood]}, which reads as `, { strong: NAMES[d.mood] }, '. Not right? Choose another feeling.');

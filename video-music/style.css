@@ -48,7 +48,24 @@
   .volume-row input{width:100%}
 }
 
-/* Layout: compact once a video is loaded, and the video beside its results on wide screens. */
+/* Panels rise in once when revealed (base.css already disables animation under prefers-reduced-motion). */
+@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.rise{animation:rise .45s cubic-bezier(.2,.7,.3,1) both}
+
+/* Empty state: what happens, at a glance. Hidden once a video is loaded. */
+.steps-preview{list-style:none;display:flex;gap:28px;margin:30px 0 0;padding:0;flex-wrap:wrap;justify-content:center}
+.steps-preview li{display:flex;flex-direction:column;gap:7px;max-width:190px;text-align:center;font-size:12px;color:#b4abbf;line-height:1.6}
+.has-video .steps-preview{display:none}
+
+/* The light over time: one segment per window of the video, coloured by the feeling read there.
+   Striped segments are mixed light the rule would not decide on — never forced into a feeling. */
+.timeline-wrap{margin:20px 0 6px}
+.timeline{display:flex;gap:3px;height:26px;margin-top:10px}
+.tl-seg{flex-grow:0;flex-shrink:0;border:0;border-radius:6px;background:var(--seg);opacity:.85;cursor:pointer;min-width:0;padding:0;transition:transform .15s,opacity .15s}
+.tl-seg:hover{transform:scaleY(1.3);opacity:1}
+.tl-seg:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.tl-mixed{background:repeating-linear-gradient(45deg,rgba(255,255,255,.16) 0 4px,rgba(255,255,255,.05) 4px 8px);border:1px dashed rgba(255,255,255,.28)}
+.timeline-note{margin-top:10px;font-size:11px}
 .compose{max-width:1180px}
 .reference-row{max-width:560px;margin-left:auto;margin-right:auto}
 .has-video #dropRow{display:none}
