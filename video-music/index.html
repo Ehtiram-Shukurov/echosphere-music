@@ -27,6 +27,11 @@
       </div>
       <p id="status" class="status video-status" role="status" aria-live="polite">Add a video of the EchoSphere robot to begin.</p>
       <div id="progress" class="progress" hidden><span id="progressBar"></span></div>
+      <ol class="steps-preview" aria-label="How it works">
+        <li><span class="eyebrow">01</span><span>Add a video of the robot</span></li>
+        <li><span class="eyebrow">02</span><span>The sphere is found and its light is read</span></li>
+        <li><span class="eyebrow">03</span><span>A matching song plays along with it</span></li>
+      </ol>
 
       <div class="results" id="results">
       <section id="videoPanel" class="work-panel" hidden aria-labelledby="videoTitle">
@@ -46,6 +51,11 @@
       <section id="feelingPanel" class="work-panel" hidden aria-labelledby="feelingTitle">
         <span class="eyebrow">02 / FEELING</span><h2 id="feelingTitle">What the sphere feels like.</h2>
         <p id="interpretation"></p>
+        <div class="timeline-wrap" id="timelineWrap" hidden>
+          <span class="eyebrow">The light over time</span>
+          <div class="timeline" id="timeline" role="group" aria-label="Mood over time. Activate a segment to jump the video there."></div>
+          <p class="helper timeline-note">What was read in each part of the video — click a segment to jump there. Striped segments are mixed light the rule would not decide on.</p>
+        </div>
         <div class="mood-grid" role="group" aria-label="Feeling">
           <button class="mood-btn" data-mood="warm" style="--mood:#FFD166" aria-pressed="false"><span class="mood-symbol" aria-hidden="true">✺</span><span>Warm</span></button>
           <button class="mood-btn" data-mood="calm" style="--mood:#A78AEA" aria-pressed="false"><span class="mood-symbol" aria-hidden="true">≈</span><span>Calm</span></button>
