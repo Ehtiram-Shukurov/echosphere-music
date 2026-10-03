@@ -7,7 +7,6 @@ played. Nothing is generated: the music is a real recording, trimmed from its st
 faded by the same finishing step every engine goes through. The track's credit line is
 written into the audio's metadata so it travels with every exported WAV and MP4.
 """
-import hashlib
 import json
 from . import auto, config, media
 
@@ -67,6 +66,23 @@ def _start(track):
     return max(0.0, float(track.get('features', {}).get('lead_silence_s', 0)) - .25)
 
 
+def _hash32(text):
+    """FNV-1a with the murmur3 fmix32 final mix, bit-identical to EchoLibrary.hash32
+    in video-music/library.js (which JavaScript's 32-bit ops define). Kept in sync
+    deliberately: the same seed must pick the same track on the server and in the
+    browser. Only defined over BMP characters, like JS charCodeAt; seeds are ASCII."""
+    h = 2166136261
+    for ch in text:
+        h ^= ord(ch)
+        h = (h * 16777619) & 0xFFFFFFFF
+    h ^= h >> 16
+    h = (h * 2246822507) & 0xFFFFFFFF
+    h ^= h >> 13
+    h = (h * 3266489909) & 0xFFFFFFFF
+    h ^= h >> 16
+    return h & 0xFFFFFFFF
+
+
 def choose(mood, duration, seed):
     """Repeatable pick: the same mood, video length and seed always give the same track."""
     pool = sorted((t for t in playable() if t['mood'] == mood), key=lambda t: t['id'])
@@ -75,7 +91,7 @@ def choose(mood, duration, seed):
                            {'mood': mood, 'library': counts()})
     fits = [t for t in pool if t['duration'] - _start(t) >= duration + END_MARGIN]
     use = fits or [max(pool, key=lambda t: t['duration'] - _start(t))]
-    pick = use[int.from_bytes(hashlib.sha256(f'{seed}|{mood}'.encode()).digest()[:4], 'big') % len(use)]
+    pick = use[_hash32(f'{seed}|{mood}') % len(use)]
     return pick, {'method': 'seeded random choice among approved tracks long enough for the video', 'candidates': len(pool),
                   'long_enough': len(fits), 'looped': not fits}
 

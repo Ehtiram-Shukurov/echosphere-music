@@ -13,6 +13,7 @@
   const CREDITS_URL = 'https://github.com/Ehtiram-Shukurov/echosphere-music/blob/main/music-library/CREDITS.md';
 
   // A small, stable string hash (FNV-1a with a final mix), so the same input always picks the same song.
+  // Mirrored by _hash32() in server/library.py: the same seed must pick the same track on both.
   function hash32(text) {
     let h = 2166136261;
     for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 16777619); }
