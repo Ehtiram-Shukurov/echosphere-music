@@ -22,17 +22,42 @@ test('hash32 matches the server hash vectors', () => {
 
 // The Python test test_track_choice_matches_browser in tests/test_library.py
 // asserts the same picks from the same fixture; the two must never disagree.
-test('choose() picks the agreed tracks for the shared fixture', () => {
+// t1 is the bright lively warm track, so it wins warm; t4 is the dark soft one, so it wins sad.
+test('choose() energy-matches the agreed tracks for the shared fixture', () => {
   const cases = [
-    ['warm', 60, 'clip:7', 't2', false],
-    ['warm', 60, 'a:0', 't1', false],
-    ['sad', 10, 'x', 't4', false],
-    ['warm', 5000, 'clip:7', 't2', true],   // nothing long enough: the longest is looped
-    ['warm', 10, 'My Video.mp4|123456|10.00:3', 't3', false],
+    // mood, duration, seed, avoid, expected id, expected fit distance, looped
+    ['warm', 60, 'clip:7', null, 't2', 2.195, false],
+    ['warm', 60, 'a:0', null, 't1', 0.511, false],
+    ['sad', 10, 'x', null, 't4', 1.183, false],
+    ['warm', 5000, 'clip:7', null, 't2', 2.195, true],   // nothing long enough: the longest is looped
+    ['warm', 10, 'seed9', null, 't1', 0.511, false],
+    ['warm', 10, 'clip:7', 't1', 't2', 2.195, false],    // "another song" skips the just-played track
   ];
-  for (const [mood, duration, seed, id, looped] of cases) {
-    const r = Lib.choose(manifest, mood, duration, seed);
+  for (const [mood, duration, seed, avoid, id, fit, looped] of cases) {
+    const r = Lib.choose(manifest, mood, duration, seed, avoid);
     assert.equal(r.track.id, id, `${mood}/${duration}/${seed}`);
+    assert.equal(r.method, 'energy match');
+    assert.equal(r.fitDistance, fit);
     assert.equal(r.looped, looped);
   }
+});
+
+test('the same input picks the same song, and the seed changes it', () => {
+  const seen = new Set();
+  for (let v = 0; v < 60; v++) seen.add(Lib.choose(manifest, 'warm', 10, `clip:${v}`).track.id);
+  assert.deepEqual([...seen].sort(), ['t1', 't2', 't3']);
+  assert.equal(Lib.choose(manifest, 'warm', 10, 'clip:7').track.id, Lib.choose(manifest, 'warm', 10, 'clip:7').track.id);
+});
+
+// Without measured audio features there is nothing to match on: the choice
+// falls back to the old uniform seeded pick, on both sides.
+test('choose() without features falls back to a uniform seeded pick', () => {
+  const bare = { tracks: [
+    { id: 'a', file: 'warm/a.mp3', title: 'a', mood: 'warm', duration: 60, eligible: true },
+    { id: 'b', file: 'warm/b.mp3', title: 'b', mood: 'warm', duration: 60, eligible: true },
+  ] };
+  const r = Lib.choose(bare, 'warm', 10, 'clip:7');
+  assert.equal(r.track.id, 'b');   // hash32('clip:7|warm') is odd
+  assert.equal(r.method, 'seeded random choice');
+  assert.equal(r.fitDistance, undefined);
 });
