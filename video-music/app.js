@@ -643,6 +643,142 @@ function stop() {
   paintPlayButton();
 }
 
+// ---- exporting the video with its song --------------------------------------------------------------------------
+// Records the composite canvas (video + "what was read" overlay) and taps the
+// master bus, so the file hears exactly what the speakers play: crossfades,
+// leveling and envelope included.
+
+let exporting = null;
+
+function pickExportMime() {
+  const cands = ['video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
+  for (const c of cands) {
+    try { if (window.MediaRecorder && MediaRecorder.isTypeSupported(c)) return c; } catch { /* try next */ }
+  }
+  return '';
+}
+
+function drawExportFrame() {
+  if (!exporting || !exporting.ctx) return;
+  const { canvas, ctx } = exporting;
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  if ($('showOverlay').checked) ctx.drawImage(overlay, 0, 0, canvas.width, canvas.height);
+  if (state.duration) $('exportBar').style.width = `${Math.min(100, video.currentTime / state.duration * 100)}%`;
+}
+
+function setExportUI(on) {
+  show('exportRow', on);
+  $('exportButton').disabled = on;
+  $('playButton').disabled = on;
+  $('anotherButton').disabled = on;
+}
+
+function teardownExportTracks(ex) {
+  try { if (ex.dest) nodes.master.disconnect(ex.dest); } catch { /* already gone */ }
+  try { ex.vtrack.stop(); } catch { /* already stopped */ }
+  try { if (ex.audioTrack) ex.audioTrack.stop(); } catch { /* already stopped */ }
+}
+
+async function exportVideo() {
+  if (exporting) return;
+  if (!state.segs || !state.segs.length) { message('Analyze a video first.', true); return; }
+  if (!window.MediaRecorder) { message('This browser cannot record video.', true); return; }
+  exporting = { cancelled: false, starting: true };   // claim the slot; blocks re-entry
+  $('exportButton').disabled = true;
+  ensureGraph();
+  try { await audioCtx.resume(); } catch { /* may still work */ }
+
+  // Preload the first segment so the recording starts with music, not silence.
+  const i0 = segAt(0);
+  let s0 = slots.findIndex((sl) => sl.seg === i0);
+  if (s0 === -1) s0 = 0;
+  if (!await loadSlot(s0, i0)) { exporting = null; setExportUI(false); message('That song could not be loaded. Try “Another song”.', true); return; }
+
+  let audioTrack = null, dest = null;
+  try {
+    dest = audioCtx.createMediaStreamDestination();
+    nodes.master.connect(dest);
+    [audioTrack] = dest.stream.getAudioTracks();
+  } catch { dest = null; }
+
+  const vw = video.videoWidth || 1280, vh = video.videoHeight || 720;
+  const scale = Math.min(1, 1280 / vw);
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(2, Math.round(vw * scale));
+  canvas.height = Math.max(2, Math.round(vh * scale));
+  const ctx = canvas.getContext('2d');
+  const [vtrack] = canvas.captureStream(30).getVideoTracks();
+  if (!vtrack) {
+    if (dest) { try { nodes.master.disconnect(dest); } catch {} }
+    exporting = null; setExportUI(false);
+    message('This browser cannot capture video.', true);
+    return;
+  }
+
+  const mime = pickExportMime();
+  const rec = new MediaRecorder(new MediaStream([vtrack, ...(audioTrack ? [audioTrack] : [])]),
+    mime ? { mimeType: mime, videoBitsPerSecond: 5_000_000 } : undefined);
+  const chunks = [];
+  rec.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+  const stopped = new Promise((res) => { rec.onstop = res; });
+
+  Object.assign(exporting, { rec, dest, canvas, ctx, vtrack, audioTrack, chunks, stopped, mime, starting: false });
+  setExportUI(true);
+  $('exportBar').style.width = '0%';
+  $('exportLabel').textContent = 'Exporting — the video plays once while its song is recorded…';
+  message('Exporting: the video plays once while its song is recorded.');
+
+  try { video.currentTime = 0; } catch { /* play() seeks anyway */ }
+  try {
+    rec.start(250);
+  } catch {
+    exporting = null;
+    teardownExportTracks({ dest, vtrack, audioTrack });
+    setExportUI(false);
+    message('The recording could not start in this browser.', true);
+    return;
+  }
+  await play();
+  if (!exporting || exporting.cancelled) return;
+  if (video.paused) {
+    // play() was blocked; it already explained why.
+    const ex = exporting; exporting = null;
+    try { ex.rec.stop(); } catch { /* already stopped */ }
+    teardownExportTracks(ex);
+    setExportUI(false);
+  }
+}
+
+async function finishExport() {
+  const ex = exporting;
+  exporting = null;
+  setExportUI(false);
+  if (!ex || !ex.rec) return;
+  try { ex.rec.stop(); } catch { /* already stopped */ }
+  try { await ex.stopped; } catch { /* ignore */ }
+  teardownExportTracks(ex);
+  if (ex.cancelled || !ex.chunks.length) {
+    message(ex.cancelled ? 'Export cancelled.' : 'Nothing was recorded.', !ex.cancelled);
+    return;
+  }
+  const ext = ex.mime.includes('mp4') ? 'mp4' : 'webm';
+  const blob = new Blob(ex.chunks, { type: ex.mime || 'video/webm' });
+  const a = document.createElement('a');
+  const d = new Date(), p = (n) => String(n).padStart(2, '0');
+  a.href = URL.createObjectURL(blob);
+  a.download = `echosphere-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}.${ext}`;
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 30_000);
+  message(`Exported ${(blob.size / 1048576).toFixed(1)} MB of video with its song.`);
+}
+
+function cancelExport() {
+  if (!exporting || !exporting.rec) return;
+  exporting.cancelled = true;
+  stop();
+  finishExport();
+}
+
 function paintPlayButton() {
   const on = !video.paused && !video.ended;
   $('playButton').textContent = on ? 'Pause' : 'Play with the video';
@@ -654,11 +790,12 @@ function loop() {
   drawOverlay();
   scheduleAudio();
   highlightTimeline(video.currentTime);
+  if (exporting) drawExportFrame();
   if (!video.paused && !video.ended) requestAnimationFrame(loop);
 }
 
 video.addEventListener('pause', () => { stopAudioOnly(); isPlaying = false; clearInterval(envelopeTimer); paintPlayButton(); });
-video.addEventListener('ended', () => { stopAudioOnly(); isPlaying = false; clearInterval(envelopeTimer); if (nodes) nodes.env.gain.value = 0; paintPlayButton(); });
+video.addEventListener('ended', () => { stopAudioOnly(); isPlaying = false; clearInterval(envelopeTimer); if (nodes) nodes.env.gain.value = 0; paintPlayButton(); if (exporting && exporting.rec) finishExport(); });
 video.addEventListener('seeked', () => { if (state.segs && !state.busy) scheduleAudio(); drawOverlay(); highlightTimeline(video.currentTime); });
 video.addEventListener('timeupdate', () => {
   if (state.busy) return;
@@ -671,6 +808,8 @@ $('scrub').addEventListener('input', () => { if (state.duration) video.currentTi
 $('volume').addEventListener('input', () => { if (nodes) nodes.master.gain.value = Number($('volume').value); });
 $('playButton').addEventListener('click', () => { if (!video.paused && !video.ended) stop(); else play(); });
 $('anotherButton').addEventListener('click', () => pickSong(true));
+$('exportButton').addEventListener('click', exportVideo);
+$('cancelExport').addEventListener('click', cancelExport);
 
 // ---- controls ---------------------------------------------------------------------------------------------------
 
