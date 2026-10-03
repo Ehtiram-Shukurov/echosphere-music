@@ -95,3 +95,41 @@ test('the real manifest: every playable track exists, is credited and is license
   // Every mood can serve a 10 s video and a 60 s video without looping.
   for (const mood of Lib.MOODS) for (const seconds of [10, 60]) assert.equal(Lib.choose(real, mood, seconds, 'x').looped, false, `${mood} ${seconds}s`);
 });
+
+test('planSegments turns the timeline into one track per mood run', () => {
+  const segManifest = { tracks: [
+    track('w1', 'warm', 200), track('w2', 'warm', 200), track('c1', 'calm', 200), track('s1', 'sad', 200),
+  ] };
+  const tl = [
+    { t0: 0, t1: 5, mood: 'warm' }, { t0: 5, t1: 10, mood: 'warm' },
+    { t0: 10, t1: 15, mood: null },   // mixed light joins the warm run
+    { t0: 15, t1: 20, mood: 'sad' },
+  ];
+  const segs = Lib.planSegments(segManifest, tl, 20, 's:0', 'warm');
+  assert.equal(segs.length, 2);
+  assert.deepEqual([segs[0].t0, segs[0].t1, segs[0].mood], [0, 15, 'warm']);
+  assert.deepEqual([segs[1].t0, segs[1].t1, segs[1].mood], [15, 20, 'sad']);
+  assert.equal(segs[0].track.mood, 'warm');
+  assert.equal(segs[1].track.mood, 'sad');
+  assert.ok(segs[0].gain && typeof segs[0].gain.db === 'number');
+  // repeatable
+  assert.deepEqual(Lib.planSegments(segManifest, tl, 20, 's:0', 'warm').map((s) => s.track.id), segs.map((s) => s.track.id));
+});
+
+test('planSegments handles empty timelines, missing moods and leading mixed light', () => {
+  const segManifest = { tracks: [track('w1', 'warm', 200), track('c1', 'calm', 200)] };
+  // all mixed: one segment with the fallback mood
+  let segs = Lib.planSegments(segManifest, [{ t0: 0, t1: 10, mood: null }], 10, 's:0', 'calm');
+  assert.equal(segs.length, 1);
+  assert.deepEqual([segs[0].t0, segs[0].t1, segs[0].mood], [0, 10, 'calm']);
+  // leading mixed light attaches forward
+  segs = Lib.planSegments(segManifest, [{ t0: 0, t1: 5, mood: null }, { t0: 5, t1: 10, mood: 'warm' }], 10, 's:0', 'warm');
+  assert.equal(segs.length, 1);
+  assert.deepEqual([segs[0].t0, segs[0].t1], [0, 10]);
+  // a mood with no tracks is absorbed by its neighbor
+  segs = Lib.planSegments(segManifest, [{ t0: 0, t1: 5, mood: 'warm' }, { t0: 5, t1: 10, mood: 'sad' }], 10, 's:0', 'warm');
+  assert.equal(segs.length, 1);
+  assert.deepEqual([segs[0].t0, segs[0].t1, segs[0].mood], [0, 10, 'warm']);
+  // nothing to pick from
+  assert.equal(Lib.planSegments({ tracks: [] }, [{ t0: 0, t1: 10, mood: 'warm' }], 10, 's:0', 'warm'), null);
+});
