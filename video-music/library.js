@@ -32,9 +32,14 @@
     return out;
   }
 
-  // Start after any digital silence, keeping a quarter second so a soft attack is not clipped.
+  // Start after any digital silence, keeping a quarter second so a soft attack is not clipped,
+  // then snap forward to the next beat so the music starts on-beat (when the manifest has beats).
   function startOf(track) {
-    return Math.max(0, ((track.features && track.features.lead_silence_s) || 0) - .25);
+    const start = Math.max(0, ((track.features && track.features.lead_silence_s) || 0) - .25);
+    const beats = ((track.features || {}).beats || []).filter((b) => typeof b === 'number' && Number.isFinite(b));
+    let best = Infinity;
+    for (const b of beats) if (b >= start && b < best) best = b;
+    return best === Infinity ? start : best;
   }
 
   // The loudness of the stretch that will actually play, from the closest measured excerpt (10 s, 30 s or 60 s).
@@ -60,6 +65,7 @@
   // keep in sync with _MOOD_TARGETS in server/library.py.
   const MOOD_TARGETS = { warm: [1, 1, .8], calm: [1, -1, -.8], sad: [-1, -1, -.8], anger: [-1, 1, 1] };
   const SHORTLIST = 3;   // how many of the closest fits the seed may choose among
+  const SEG_XFADE = 2;   // crossfade seconds at segment boundaries (clamped per boundary at playback)
 
   function hasAffect(t) {
     const f = t.features || {};
@@ -107,6 +113,53 @@
     }).sort((a, b) => a[0] - b[0] || (a[1].id < b[1].id ? -1 : a[1].id > b[1].id ? 1 : 0));
   }
 
+  // The segment playlist: contiguous runs of the same timeline mood, each with its own
+  // energy-matched track, so the music follows the light over time. Windows with no clear
+  // mood attach to the neighboring run; runs whose mood has no tracks are absorbed the
+  // same way. `avoidIds[i]` optionally skips a track for run i ("another song").
+  // Returns null when nothing can be picked.
+  function planSegments(manifest, timeline, duration, seed, fallbackMood, avoidIds) {
+    const avail = counts(manifest);
+    // 1. runs by mood
+    const raw = [];
+    let pending = null;
+    for (const w of timeline || []) {
+      if (!w.mood) {
+        if (raw.length) raw[raw.length - 1].t1 = w.t1;
+        else pending = pending ? { t0: pending.t0, t1: w.t1 } : { t0: w.t0, t1: w.t1 };
+        continue;
+      }
+      if (pending) { raw.push({ t0: pending.t0, t1: w.t1, mood: w.mood }); pending = null; }
+      else if (raw.length && raw[raw.length - 1].mood === w.mood) raw[raw.length - 1].t1 = w.t1;
+      else raw.push({ t0: w.t0, t1: w.t1, mood: w.mood });
+    }
+    if (pending) {
+      if (raw.length) raw[raw.length - 1].t1 = pending.t1;
+      else raw.push({ t0: 0, t1: duration, mood: fallbackMood });
+    }
+    if (!raw.length) raw.push({ t0: 0, t1: duration, mood: fallbackMood });
+    // 2. drop runs whose mood has no tracks, merging their time into neighbors
+    const runs = [];
+    let leadT0 = null;
+    for (const r of raw) {
+      if ((avail[r.mood] || 0) > 0) {
+        runs.push({ t0: leadT0 !== null ? leadT0 : r.t0, t1: r.t1, mood: r.mood });
+        leadT0 = null;
+      } else if (runs.length) runs[runs.length - 1].t1 = r.t1;
+      else leadT0 = leadT0 !== null ? leadT0 : r.t0;
+    }
+    if (!runs.length) return null;
+    runs[0].t0 = 0; runs[runs.length - 1].t1 = duration;
+    // 3. an energy-matched track per run
+    const segs = [];
+    for (let i = 0; i < runs.length; i++) {
+      const r = runs[i], dur = Math.max(.1, r.t1 - r.t0);
+      const pick = choose(manifest, r.mood, dur, `${seed}:seg${i}`, avoidIds && avoidIds[i]);
+      if (!pick) return null;
+      segs.push({ t0: r.t0, t1: r.t1, mood: r.mood, track: pick.track, pick, gain: gainFor(pick.track, dur) });
+    }
+    return segs;
+  }
   // Repeatable pick among approved tracks long enough for the video; the longest one is looped only as a last resort.
   // When every candidate has measured audio features, the seed picks among the closest
   // (valence, arousal, energy) fits for the mood instead of uniformly at random.
@@ -145,5 +198,5 @@
     return base + track.file.split('/').map(encodeURIComponent).join('/');
   }
 
-  return { MOODS, TARGET_LUFS, MAX_BOOST_DB, MAX_CUT_DB, END_MARGIN, EDIT_NOTE, CREDITS_URL, hash32, playable, counts, startOf, loudnessOf, gainFor, choose, fadeSeconds, envelope, creditLine, urlOf, hasAffect, affectStats, affectOf, rankedByFit, MOOD_TARGETS };
+  return { MOODS, TARGET_LUFS, MAX_BOOST_DB, MAX_CUT_DB, END_MARGIN, EDIT_NOTE, CREDITS_URL, hash32, playable, counts, startOf, loudnessOf, gainFor, choose, planSegments, SEG_XFADE, fadeSeconds, envelope, creditLine, urlOf, hasAffect, affectStats, affectOf, rankedByFit, MOOD_TARGETS };
 });

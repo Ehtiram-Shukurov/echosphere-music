@@ -7,11 +7,20 @@ const THEME = { warm: ['#FFD166', '255,209,102'], calm: ['#B59BEA', '123,78,214'
 const MAX_SIDE = 320, MAX_SAMPLES = 100, SAMPLES_PER_SECOND = 5;
 
 const video = $('video'), audio = $('song'), overlay = $('overlay'), stage = document.querySelector('.video-stage');
+const audioB = new Audio(); audioB.crossOrigin = 'anonymous'; audioB.preload = 'auto';
 const state = {
   manifest: null, run: 0, busy: false, file: null, url: null, duration: 0, frames: [], report: null, manual: null, sceneFallback: false,
-  drawing: false, draft: null, decision: null, mood: null, seed: '', variation: 0, track: null, pick: null, gain: null,
+  drawing: false, draft: null, decision: null, mood: null, forceMood: null, seed: '', variation: 0,
+  segs: null, track: null, pick: null, gain: null,   // track/pick/gain always describe the current segment
 };
 let audioCtx = null, nodes = null, envelopeTimer = 0;
+// Two media elements take turns: while one plays a segment, the other preloads the next,
+// and they crossfade at boundaries. seg = segment index, -1 = idle.
+const slots = [
+  { el: audio, level: null, xfade: null, seg: -1, ready: false, loading: false, loadPromise: null, loadToken: 0 },
+  { el: audioB, level: null, xfade: null, seg: -1, ready: false, loading: false, loadPromise: null, loadToken: 0 },
+];
+let lastCur = -1;
 
 // ---- small helpers -----------------------------------------------------------------------------------------------
 
@@ -116,7 +125,7 @@ function seek(el, t) {
 function resetForNewVideo() {
   stop();
   state.run++;
-  Object.assign(state, { frames: [], report: null, manual: null, sceneFallback: false, drawing: false, draft: null, decision: null, timeline: null, mood: null, variation: 0, track: null, pick: null, gain: null });
+  Object.assign(state, { frames: [], report: null, manual: null, sceneFallback: false, drawing: false, draft: null, decision: null, timeline: null, mood: null, forceMood: null, variation: 0, segs: null, track: null, pick: null, gain: null });
   stage.classList.remove('drawing');
   $('stageRoot').classList.remove('has-video');
   for (const id of ['videoPanel', 'feelingPanel', 'songPanel', 'drawHint', 'wholeButton', 'autoButton', 'timelineWrap']) show(id, false);
@@ -252,6 +261,7 @@ function renderTimeline() {
       ariaLabel: `Jump to ${fmt(seg.t0)}: ${label}`,
     });
     el.style.flexBasis = `${Math.max(1.5, (seg.t1 - seg.t0) / total * 100)}%`;
+    el.dataset.t0 = seg.t0; el.dataset.t1 = seg.t1;
     if (seg.mood) el.style.setProperty('--seg', THEME[seg.mood][0]);
     el.addEventListener('click', () => { video.currentTime = Math.min(seg.t0 + .01, Math.max(0, state.duration - .05)); });
     box.append(el);
@@ -259,8 +269,18 @@ function renderTimeline() {
   show('timelineWrap', true);
 }
 
+// The timeline marks where the music is: the window under the playhead glows.
+function highlightTimeline(t) {
+  const box = $('timeline');
+  if (!box || !box.children.length) return;
+  for (const el of box.children) {
+    el.classList.toggle('playing', t >= Number(el.dataset.t0) && t < Number(el.dataset.t1));
+  }
+}
+
 function presentAnalysis() {
   const { report } = state;
+  state.forceMood = null;   // a fresh reading replaces any manual mood choice
   show('wholeButton', false); show('autoButton', false); show('drawHint', false);
   state.drawing = false; stage.classList.remove('drawing');
   if (!state.manual && report.status !== 'ok') {
@@ -413,45 +433,115 @@ function drawOverlay() {
   if (state.draft) drawEllipse(ctx, state.draft, w, h, '#ffd166', line, [6 * dpr, 5 * dpr]);
 }
 
-// ---- choosing and loading the song -------------------------------------------------------------------------------
+// ---- choosing and loading the songs ------------------------------------------------------------------------------
+// The timeline becomes a playlist: one energy-matched track per run of the same mood,
+// crossfaded at boundaries. A single-mood video is one segment and behaves exactly like before.
+
+function segAt(t) {
+  const segs = state.segs;
+  for (let i = 0; i < segs.length; i++) if (t < segs[i].t1) return i;
+  return segs.length - 1;
+}
+
+// Crossfade seconds at the boundary after segment i, clamped so short segments still work.
+function xfadeAt(i) {
+  const segs = state.segs;
+  if (i < 0 || i >= segs.length - 1) return 0;
+  return Math.max(.05, Math.min(EchoLibrary.SEG_XFADE, (segs[i].t1 - segs[i].t0) / 2, (segs[i + 1].t1 - segs[i + 1].t0) / 2));
+}
+
+// Video time at which segment i's element starts playing (its fade-in begins).
+function playStartOf(i) { return i === 0 ? 0 : state.segs[i].t0 - xfadeAt(i - 1); }
+
+// Where segment i's track should be at video time t.
+function offsetFor(i, t) {
+  const seg = state.segs[i];
+  const start = EchoLibrary.startOf(seg.track);
+  const span = Math.max(.1, seg.track.duration - start);
+  const dt = Math.max(0, t - playStartOf(i));
+  return start + (seg.pick.looped ? dt % span : Math.min(dt, span - .05));
+}
+
+// Crossfade gain for segment i's element at video time t: ramps across each boundary.
+function segGain(i, t) {
+  const segs = state.segs, n = segs.length;
+  let g = 1;
+  if (i > 0) { const X = xfadeAt(i - 1); g *= Math.min(1, Math.max(0, (t - (segs[i].t0 - X)) / X)); }
+  if (i < n - 1) { const X = xfadeAt(i); g *= Math.min(1, Math.max(0, (segs[i].t1 - t) / X)); }
+  return g;
+}
+
+// Load segment i into slot s. Safe to call repeatedly; superseded loads are ignored.
+function loadSlot(s, i) {
+  const sl = slots[s];
+  if (sl.seg === i && sl.loadPromise) return sl.loadPromise;
+  const token = (sl.loadToken = (sl.loadToken || 0) + 1);
+  const seg = state.segs[i];
+  sl.loading = true; sl.ready = false; sl.seg = i;
+  if (sl.level) sl.level.gain.value = Math.pow(10, seg.gain.db / 20);
+  if (sl.xfade) sl.xfade.gain.value = 0;
+  const el = sl.el;
+  el.pause(); el.loop = false;   // looping is handled by offsetFor, per segment
+  el.src = EchoLibrary.urlOf(BASE, seg.track);
+  el.load();
+  sl.loadPromise = new Promise((resolve) => {
+    const timer = setTimeout(() => done(false), 30000);
+    const done = (ok) => {
+      el.oncanplay = el.onerror = null; clearTimeout(timer);
+      if (sl.loadToken !== token) return resolve(false);   // a newer load took over
+      sl.loading = false; sl.ready = ok; resolve(ok);
+    };
+    el.oncanplay = () => done(true);
+    el.onerror = () => done(false);
+  });
+  return sl.loadPromise;
+}
+
+// Make sure segment i is loading/loaded in some slot (fire-and-forget for preloads).
+function ensureLoaded(i) {
+  if (!state.segs || i < 0 || i >= state.segs.length) return;
+  if (slots.some((sl) => sl.seg === i)) return;
+  const s = slots.findIndex((sl) => sl.seg === -1);
+  if (s === -1) return;   // both busy; the next frame retries
+  loadSlot(s, i).then((ok) => { if (ok) scheduleAudio(); });
+}
+
+function setCurrentSeg(i) {
+  const seg = state.segs[i];
+  state.track = seg.track; state.pick = seg.pick; state.gain = seg.gain;
+  fillSongPanel(i);
+}
 
 async function pickSong(another) {
   if (!state.manifest) return message('The song library could not be loaded.', true);
   if (another) state.variation++;
-  const pick = EchoLibrary.choose(state.manifest, state.mood, state.duration, `${state.seed}:${state.variation}`, another && state.track ? state.track.id : null);
-  if (!pick) { show('songPanel', false); return message(`There are no ${NAMES[state.mood]} songs in the library yet.`, true); }
+  const timeline = state.forceMood ? [{ t0: 0, t1: state.duration, mood: state.forceMood }] : state.timeline;
+  const avoid = another && state.segs ? state.segs.map((s) => s.track.id) : null;
+  const segs = EchoLibrary.planSegments(state.manifest, timeline, state.duration, `${state.seed}:${state.variation}`, state.mood, avoid);
+  if (!segs || !segs.length) { show('songPanel', false); return message('There are no songs in the library for these moods yet.', true); }
   const wasPlaying = !video.paused && !video.ended;
-  stopAudioOnly();
-  state.pick = pick; state.track = pick.track;
-  state.gain = EchoLibrary.gainFor(pick.track, state.duration);
-  audio.loop = pick.looped;
-  audio.src = EchoLibrary.urlOf(BASE, pick.track);
-  audio.load();
-  fillSongPanel();
-  applyGain();
-  try {
-    await new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error('timeout')), 30000);
-      audio.oncanplay = () => { clearTimeout(timer); resolve(); };
-      audio.onerror = () => { clearTimeout(timer); reject(new Error('audio')); };
-    });
-  } catch {
-    return message('That song could not be loaded. Try “Another song”.', true);
-  }
-  syncAudio(true);
-  if (wasPlaying) { try { await audio.play(); } catch { /* the play button starts it again */ } }
+  for (const sl of slots) { sl.el.pause(); sl.seg = -1; sl.ready = false; sl.loading = false; sl.loadPromise = null; }
+  state.segs = segs; lastCur = -1;
+  const i = segAt(video.currentTime);
+  if (!await loadSlot(0, i)) return message('That song could not be loaded. Try “Another song”.', true);
+  try { slots[0].el.currentTime = offsetFor(i, video.currentTime); } catch { /* not seekable yet */ }
+  setCurrentSeg(i); lastCur = i;
+  if (wasPlaying) play();
+  else scheduleAudio();
 }
 
-function fillSongPanel() {
-  const t = state.track, pick = state.pick;
+function fillSongPanel(i) {
+  const seg = state.segs[i], t = seg.track, pick = seg.pick;
   show('songPanel', true);
   $('songTitle').textContent = t.title;
-  $('songMeta').textContent = `${NAMES[state.mood]} · ${t.artist || 'Unknown artist'} · a ${fmt(t.duration)} song, playing for ${fmt(state.duration)}`;
+  const part = state.segs.length > 1 ? ` · part ${i + 1} of ${state.segs.length}` : '';
+  $('songMeta').textContent = `${NAMES[seg.mood]} · ${t.artist || 'Unknown artist'} · a ${fmt(t.duration)} song, playing for ${fmt(seg.t1 - seg.t0)}${part}`;
   const credit = EchoLibrary.creditLine(t);
   $('credit').replaceChildren(`Music: ${credit}. ${EchoLibrary.EDIT_NOTE} `, make('a', { href: EchoLibrary.CREDITS_URL, textContent: 'All credits', target: '_blank', rel: 'noopener' }));
   const notes = [];
-  if (pick.looped) notes.push('This song is shorter than your video, so it repeats.');
-  if (state.gain.limited) notes.push('This song is very quiet, so it may sound softer than the others.');
+  if (pick.looped) notes.push('This song is shorter than its part, so it repeats.');
+  if (seg.gain.limited) notes.push('This song is very quiet, so it may sound softer than the others.');
+  if (state.segs.length > 1) notes.push('The music follows the light: a new song starts where the feeling changes.');
   $('songNote').textContent = notes.join(' ');
   const link = $('downloadSong');
   link.href = EchoLibrary.urlOf(BASE, t);
@@ -465,39 +555,55 @@ function fillSongPanel() {
 function ensureGraph() {
   if (audioCtx) return;
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  const source = audioCtx.createMediaElementSource(audio);
-  const gain = audioCtx.createGain(), env = audioCtx.createGain(), master = audioCtx.createGain();
-  const limiter = audioCtx.createDynamicsCompressor(), analyser = audioCtx.createAnalyser();
+  const env = audioCtx.createGain(), limiter = audioCtx.createDynamicsCompressor(), master = audioCtx.createGain(), analyser = audioCtx.createAnalyser();
   limiter.threshold.value = -2; limiter.knee.value = 0; limiter.ratio.value = 20; limiter.attack.value = .003; limiter.release.value = .1;
   analyser.fftSize = 256; analyser.smoothingTimeConstant = .8;
   master.gain.value = Number($('volume').value);
-  source.connect(gain); gain.connect(env); env.connect(limiter); limiter.connect(master); master.connect(analyser); analyser.connect(audioCtx.destination);
-  nodes = { gain, env, master, analyser };
-  analyserNode = analyser;
-  applyGain();
-}
-
-function applyGain() {
-  if (nodes && state.gain) nodes.gain.gain.value = Math.pow(10, state.gain.db / 20);      // brings every song to about the same level
-}
-
-function audioTimeFor(t) {
-  const start = EchoLibrary.startOf(state.track);
-  const span = Math.max(.1, state.track.duration - start);
-  return start + (state.pick.looped ? t % span : Math.min(t, span - .05));
-}
-
-let lastCorrection = 0;
-function syncAudio(force) {
-  if (!state.track) return;
-  const expected = audioTimeFor(video.currentTime), now = performance.now();
-  if (!force) {
-    // Small drift is left alone, and a seek already under way is never interrupted: on a slow connection every
-    // correction is a new download, and correcting too eagerly makes the song stutter.
-    if (audio.seeking || Math.abs(audio.currentTime - expected) < .5 || now - lastCorrection < 2000) return;
+  for (const sl of slots) {
+    const source = audioCtx.createMediaElementSource(sl.el);
+    const level = audioCtx.createGain(), xfade = audioCtx.createGain();
+    xfade.gain.value = 0;
+    source.connect(level); level.connect(xfade); xfade.connect(env);
+    sl.level = level; sl.xfade = xfade;
+    if (sl.seg !== -1 && state.segs && state.segs[sl.seg]) sl.level.gain.value = Math.pow(10, state.segs[sl.seg].gain.db / 20);
   }
-  lastCorrection = now;
-  try { audio.currentTime = expected; } catch { /* not seekable yet */ }
+  env.connect(limiter); limiter.connect(master); master.connect(analyser); analyser.connect(audioCtx.destination);
+  nodes = { env, master, analyser };
+  analyserNode = analyser;
+}
+
+// The per-frame scheduler: the single source of truth for which element plays what.
+// Ensures the current (and upcoming) segments are loaded, ramps crossfade gains,
+// corrects drift, and frees slots that are far from the playhead.
+function scheduleAudio() {
+  if (!state.segs || !state.segs.length || !slots.length) return;
+  const t = video.currentTime, n = state.segs.length;
+  const cur = segAt(t);
+  for (const sl of slots) {
+    if (sl.seg !== -1 && !sl.loading && (sl.seg < cur || sl.seg > cur + 1)) { sl.el.pause(); sl.seg = -1; sl.ready = false; }
+  }
+  if (cur !== lastCur) {
+    lastCur = cur;
+    setCurrentSeg(cur);
+    if (cur + 1 < n) ensureLoaded(cur + 1);   // preload the next while this one plays
+  }
+  ensureLoaded(cur);
+  if (cur + 1 < n && t >= state.segs[cur].t1 - Math.max(.05, xfadeAt(cur)) - .3) ensureLoaded(cur + 1);
+  if (!audioCtx) return;
+  const now = audioCtx.currentTime;
+  for (const sl of slots) {
+    if (sl.seg === -1 || !sl.ready || sl.loading) continue;
+    const j = sl.seg, g = segGain(j, t);
+    sl.xfade.gain.setTargetAtTime(g, now, .03);
+    if (!video.paused && !video.ended && g > .001 && sl.el.paused) {
+      try { sl.el.currentTime = offsetFor(j, t); } catch { /* not seekable yet */ }
+      sl.el.play().catch(() => { /* the play button starts it again */ });
+    }
+    if (!sl.el.paused && !sl.el.seeking) {
+      const expected = offsetFor(j, t);
+      if (Math.abs(sl.el.currentTime - expected) > .6) { try { sl.el.currentTime = expected; } catch { /* not seekable yet */ } }
+    }
+  }
 }
 
 function tickEnvelope() {
@@ -506,25 +612,32 @@ function tickEnvelope() {
 }
 
 async function play() {
-  if (!state.track) return;
+  if (!state.segs || !state.segs.length) return;
   ensureGraph();
   await audioCtx.resume();
   if (video.ended || video.currentTime >= state.duration - .1) video.currentTime = 0;
-  syncAudio(true);
+  const i = segAt(video.currentTime);
+  let s = slots.findIndex((sl) => sl.seg === i);
+  if (s === -1) s = 0;
+  if (!await loadSlot(s, i)) { message('That song could not be loaded. Try \u201cAnother song\u201d.', true); return; }
+  const sl = slots[s];
+  try { sl.el.currentTime = offsetFor(i, video.currentTime); } catch { /* not seekable yet */ }
+  setCurrentSeg(i); lastCur = i;
   tickEnvelope();
-  try { await Promise.all([video.play(), audio.play()]); } catch (e) { message('The browser blocked playback. Press Play again.', true); return; }
+  try { await Promise.all([video.play(), sl.el.play()]); } catch (e) { message('The browser blocked playback. Press Play again.', true); return; }
   isPlaying = true;
   window.dispatchEvent(new Event('sphere-change'));
   clearInterval(envelopeTimer);
   envelopeTimer = setInterval(tickEnvelope, 40);
   paintPlayButton();
   requestAnimationFrame(loop);
+  if (i + 1 < state.segs.length) ensureLoaded(i + 1);
 }
 
-function stopAudioOnly() { audio.pause(); }
+function stopAudioOnly() { for (const sl of slots) sl.el.pause(); }
 
 function stop() {
-  video.pause(); audio.pause();
+  video.pause(); stopAudioOnly();
   isPlaying = false;
   clearInterval(envelopeTimer);
   paintPlayButton();
@@ -539,17 +652,19 @@ function paintPlayButton() {
 
 function loop() {
   drawOverlay();
+  scheduleAudio();
+  highlightTimeline(video.currentTime);
   if (!video.paused && !video.ended) requestAnimationFrame(loop);
 }
 
-video.addEventListener('pause', () => { audio.pause(); isPlaying = false; clearInterval(envelopeTimer); paintPlayButton(); });
-video.addEventListener('ended', () => { audio.pause(); isPlaying = false; clearInterval(envelopeTimer); if (nodes) nodes.env.gain.value = 0; paintPlayButton(); });
-video.addEventListener('seeked', () => { if (state.track && !state.busy) syncAudio(true); drawOverlay(); });
+video.addEventListener('pause', () => { stopAudioOnly(); isPlaying = false; clearInterval(envelopeTimer); paintPlayButton(); });
+video.addEventListener('ended', () => { stopAudioOnly(); isPlaying = false; clearInterval(envelopeTimer); if (nodes) nodes.env.gain.value = 0; paintPlayButton(); });
+video.addEventListener('seeked', () => { if (state.segs && !state.busy) scheduleAudio(); drawOverlay(); highlightTimeline(video.currentTime); });
 video.addEventListener('timeupdate', () => {
   if (state.busy) return;
   $('clock').textContent = `${fmt(video.currentTime)} / ${fmt(state.duration)}`;
   if (state.duration) $('scrub').value = String(Math.round(video.currentTime / state.duration * 1000));
-  if (!video.paused && state.track) syncAudio(false);
+  if (!video.paused && state.segs) scheduleAudio();
   if (video.paused) drawOverlay();
 });
 $('scrub').addEventListener('input', () => { if (state.duration) video.currentTime = Number($('scrub').value) / 1000 * state.duration; });
@@ -560,7 +675,7 @@ $('anotherButton').addEventListener('click', () => pickSong(true));
 // ---- controls ---------------------------------------------------------------------------------------------------
 
 document.querySelectorAll('.mood-btn').forEach((b) => b.addEventListener('click', () => {
-  state.mood = b.dataset.mood; state.variation = 0;
+  state.mood = b.dataset.mood; state.forceMood = b.dataset.mood; state.variation = 0;
   applyMood(state.mood); paintMoodButtons(); pickSong(false);
   message(`${NAMES[state.mood]} chosen.`);
 }));

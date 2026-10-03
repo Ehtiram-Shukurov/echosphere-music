@@ -42,7 +42,8 @@
 .footer a{color:inherit;text-decoration:underline;text-underline-offset:3px}
 
 @media(max-width:650px){
-  .dropzone{padding:14px}
+  .compose .reference-row{max-width:100%}
+  .dropzone{padding:16px 18px}
   .player-row>*,.action-row>*{flex:1 1 100%}
   .footer{flex-direction:column;height:auto;gap:4px;padding:10px 0}
   .volume-row input{width:100%}
@@ -51,6 +52,21 @@
 /* Panels rise in once when revealed (base.css already disables animation under prefers-reduced-motion). */
 @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
 .rise{animation:rise .45s cubic-bezier(.2,.7,.3,1) both}
+
+/* The dropzone is the front door: give it presence instead of a whisper. */
+.compose .reference-row{max-width:560px;margin:26px auto}
+.dropzone{border:1.5px dashed rgba(190,170,210,.5);border-radius:20px;padding:24px 30px;background:rgba(18,16,24,.55)}
+.dropzone:hover,.dropzone.over{border-color:var(--accent);background:rgba(var(--accent-rgb),.08);box-shadow:0 0 28px rgba(var(--accent-rgb),.14)}
+.dropzone .upload-icon{width:40px;height:40px}
+
+/* The empty-state status reads as a centered invitation, like the base .status. */
+.video-status{text-align:center}
+
+/* Footer: present, not whisper-quiet. */
+.footer{color:#b3a7c2}
+
+/* The timeline marks where the music is: the window under the playhead glows. */
+.tl-seg.playing{box-shadow:0 0 0 2px var(--accent);opacity:1}
 
 /* Empty state: what happens, at a glance. Hidden once a video is loaded. */
 .steps-preview{list-style:none;display:flex;gap:28px;margin:30px 0 0;padding:0;flex-wrap:wrap;justify-content:center}

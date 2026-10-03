@@ -97,3 +97,14 @@ def test_recording_another_sources_terms_makes_its_tracks_usable_and_credited(ba
         assert t['credit'].endswith('by Somebody Else (example.org), CC0 1.0') and 'you supplied those terms' in t['license_evidence']
     finally:
         (base / 'licenses.json').unlink()
+
+
+def test_beats_find_the_onset_grid():
+    import numpy as np
+    from music_features import _beats
+    flux = np.random.RandomState(0).rand(1000) * 0.01
+    flux[5::22] = 10.0                                        # strong onsets every 22 frames (~120 bpm)
+    beats = _beats(flux, 120)
+    assert beats[:3] == [0.116, 0.627, 1.138]
+    assert all(b2 > b1 for b1, b2 in zip(beats, beats[1:])) and len(beats) > 40
+    assert _beats(np.zeros(10), 120) == [] and _beats(flux, 0) == []

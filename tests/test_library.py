@@ -167,3 +167,16 @@ def test_energy_match_is_repeatable_and_varies_with_the_seed(monkeypatch):
     monkeypatch.setattr(library, 'playable', lambda manifest=None: [t for t in fixture['tracks'] if t['eligible']])
     assert library.choose('warm', 10.0, 'seed1')[0]['id'] == library.choose('warm', 10.0, 'seed1')[0]['id']
     assert len({library.choose('warm', 10.0, f'seed{i}')[0]['id'] for i in range(60)}) > 1
+
+
+def test_start_snaps_forward_to_the_next_beat():
+    """Must match the JS startOf() expectations in tests/js/library.test.mjs exactly."""
+    from server import library
+    def t(silence, beats):
+        return {'id': 't', 'mood': 'warm', 'duration': 60.0, 'eligible': True,
+                'features': {'lead_silence_s': silence, 'beats': beats}}
+    assert library._start(t(1.0, [0.2, 0.7, 1.2, 1.7, 2.2])) == 1.2    # 0.75 -> next beat
+    assert library._start(t(0.1, [0.2, 0.7])) == 0.2
+    assert library._start(t(1.0, [])) == 0.75                            # no beats: plain silence skip
+    assert library._start(t(1.0, None)) == 0.75
+    assert library._start(t(2.0, [0.1, 0.3])) == 1.75                    # no beat at or after the start

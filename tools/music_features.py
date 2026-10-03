@@ -80,6 +80,19 @@ def _tempo(flux):
     return int(bpms[best]), float(max(strength[best], 0))
 
 
+def _beats(flux, tempo_bpm):
+    """Beat times in seconds from the onset envelope: the phase of a grid at the estimated
+    tempo that lands on the most onset energy. Crude but dependency-free; the grid is only
+    used to start excerpts on a beat, so phase matters more than perfect tempo."""
+    period = 60.0 / tempo_bpm if tempo_bpm > 0 else 0
+    step = int(round(period * FPS))
+    if step < 1 or len(flux) <= step:
+        return []
+    best_phase = int(np.argmax([flux[phase::step].sum() for phase in range(step)]))
+    n = 1 + (len(flux) - 1 - best_phase) // step
+    return [round((best_phase + k * step) / FPS, 3) for k in range(n)]
+
+
 def _chroma(y):
     size, hop = 8192, 4096
     window = np.hanning(size).astype(np.float32)
@@ -129,6 +142,7 @@ def analyze(path):
         'analysed_seconds': round(seconds, 1),
         'tempo_bpm': tempo,
         'pulse_clarity': round(pulse, 3),
+        'beats': _beats(flux, tempo),
         'onset_rate': round(len(peaks) / seconds, 3),
         'rms_db': round(float(np.mean(rms_db[live])), 2),
         'dynamic_range_db': round(float(np.percentile(rms_db, 95) - np.percentile(rms_db, 10)), 2),
