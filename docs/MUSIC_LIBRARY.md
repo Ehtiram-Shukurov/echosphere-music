@@ -98,7 +98,7 @@ Kevin MacLeod's music is CC BY 4.0: **commercial use is allowed, but the credit 
 
 - **Mood labels are not verified by ear** unless you (or a teammate) reviewed them. Automatic `ok` means "nothing measured contradicts the folder".
 - **Warm is the thinnest folder.** Several "Warm" tracks measure as loud, bright and busy, which is not what the product means by Warm (comforting, gently joyful). Review them.
-- The excerpt always starts at the beginning of the track. It is not aligned to beats or to events in the video, and the end is a fade, not a musical ending.
+- The excerpt starts on a beat (beat positions are pre-measured into the manifest). It is not aligned to events in the video, and the end is a fade, not a musical ending.
 - Only the first 60 seconds of a track were measured, but a 60-second video plays exactly that part, so this matches use.
 - The Oracle demo server cannot use the library yet: its container is built without the `music-library` folder (it is in `.dockerignore` and not mounted), so `engine=library` would be refused there. Pulling the repository onto the VM would bring the files, but the container would still need them mounted.
 

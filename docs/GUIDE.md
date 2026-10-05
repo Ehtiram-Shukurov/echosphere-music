@@ -8,7 +8,7 @@
 
 ## 1. The 60-second summary
 
-**What it does.** You give it a video of the EchoSphere robot. It finds the glowing sphere, reads the sphere's colors and movement to decide a mood (Warm, Calm, Sad or Anger), composes a piece of instrumental music of the same length, and hands you back the music (WAV) and the video with the music added (MP4).
+**What it does.** You give it a video of the EchoSphere robot. It finds the glowing sphere, reads the sphere's colors to decide a mood (Warm, Calm, Sad or Anger), picks a matching recorded track from the music library, cuts it to the video's length, and hands you back the music and the video with the music added.
 
 **Why it exists.** The team changed the goal from "make music from a song" to "make music from what the robot's sphere *looks like*", with an API so the robot and the team can call it automatically.
 
@@ -20,7 +20,7 @@
 | The original music page | GitHub Pages: `https://ehtiram-shukurov.github.io/echosphere-music/` (unchanged) |
 | The API server | A free-credit Oracle Cloud server (address and access key are held by the project owner, not written in this public repo) |
 
-**Honest status in one line.** It works end to end and passes 35 automated tests. It has been proven on **one demo video and four still images**, not on a wide range of real footage, and the server is a **temporary demo**.
+**Honest status in one line.** It works end to end and passes 30 browser tests plus the Python suite. It has been proven on **one demo video and four still images**, not on a wide range of real footage, and the server is a **temporary demo**. The live product is the browser page on GitHub Pages (see section 13).
 
 ---
 
@@ -315,7 +315,9 @@ The site is down for a few minutes while it rebuilds. To roll back, check out th
 
 **What changed.** The sphere-reading half is unchanged. The last step, which used to compose music, now **picks a real recorded track** from `music-library/<mood>/`, cuts it to the video's length, levels its volume and fades it. This is the default for `POST /v1/soundtracks/auto`; `engine=composer` still works.
 
-**What is in the library now.** 80 tracks, 20 per folder, all by Kevin MacLeod (incompetech.com). Their licence, **CC BY 4.0, allows commercial use but requires the credit** wherever the music is used. Every exported file carries its credit, the result page shows it, and `music-library/CREDITS.md` lists them all. **The product itself must show those credits.**
+**What is in the library now.** 76 tracks, all by Kevin MacLeod (incompetech.com), 74 of them approved for use: Warm 15, Calm 21, Sad 19, Anger 19. Their licence, **CC BY 4.0, allows commercial use but requires the credit** wherever the music is used. Every exported file carries its credit, the result page shows it, and `music-library/CREDITS.md` lists them all. **The product itself must show those credits.**
+
+**How a track is picked.** Each track is scored by how close its feel (brightness, intensity, energy) is to the mood's ideal point, and the seed picks among the three closest. The excerpt starts on a beat: beat positions are pre-measured for every track and stored in the manifest, so the music starts on a musical downbeat instead of mid-phrase.
 
 **What the automatic check found.**
 - 3 files were duplicates (2 of them filed under two different moods), and 1 file had no source information, so those are held out.
@@ -325,7 +327,7 @@ The site is down for a few minutes while it rebuilds. To roll back, check out th
 
 **What you do.** Open `music-library/review.html`, play the flagged tracks (30 seconds each), click what each one really is, copy the decisions into `music-library/decisions.json`, and rebuild with `tools/build_music_manifest.py`. Details: [MUSIC_LIBRARY.md](MUSIC_LIBRARY.md).
 
-**Honest limits.** "ok" means nothing measured contradicts the folder, not that a person listened. The excerpt always starts at the track's beginning and ends with a fade, not a musical ending. The demo server on Oracle cannot use the library yet: its container does not include the `music-library` folder, so it would refuse this option until that is set up.
+**Honest limits.** "ok" means nothing measured contradicts the folder, not that a person listened. The excerpt starts on a beat and ends with a fade, not a musical ending. The demo server on Oracle cannot use the library yet: its container does not include the `music-library` folder, so it would refuse this option until that is set up.
 
 ---
 
@@ -341,7 +343,23 @@ The site is down for a few minutes while it rebuilds. To roll back, check out th
 
 ---
 
-## 14. Words used in this guide
+## 14. Update: the browser page follows mood changes, exports video, and falls back to the whole scene
+
+*Added after the manager asked for the pipeline to be "better and different". All in `video-music/`, all running in the browser.*
+
+**Music follows the video's feelings over time.** The timeline is split into stretches where one feeling dominates. Each stretch gets its own energy-matched track, and the tracks crossfade into each other. If you pick a feeling by hand, it collapses to a single track.
+
+**Export video.** A button records the video with its full soundtrack and downloads it as an MP4 (WebM where MP4 is unsupported). The recording is clean — no detection outlines — up to 1080p at 10 Mbps video plus 192 kbps audio, and the file seeks normally in any player. It is a live browser recording, not a studio render, so quality has a ceiling.
+
+**Scene fallback.** If the sphere can't be found reliably, the page reads the whole scene instead — but only when the scene's colors clearly point to one feeling. A snowy blue scene reads Sad; a truly mixed scene still asks you. Picking a feeling by hand, or going back to auto-detect, clears the fallback.
+
+**Energy-matched picking.** Tracks are scored in a shared space of brightness, intensity and energy; the seed picks among the three closest to the feeling's ideal. The same code runs in `server/library.py` and `video-music/library.js`, checked against each other by tests.
+
+**Beat-snapped starts.** Every track's beat positions are pre-measured into the manifest (`features.beats`), and excerpts start on the next beat after the track's opening silence.
+
+---
+
+## 15. Words used in this guide
 
 - **API:** a way for one program to ask another to do something over the internet. Here: "make a soundtrack from this video."
 - **Job:** one request being worked on. You get its `id` at once and check back later.
