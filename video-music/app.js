@@ -220,14 +220,14 @@ async function findSphere(token) {
 
 function focusFor(t) {
   if (state.manual) return state.manual;
-  if (state.sceneFallback) return { cx: .5, cy: .5, rx: .5, ry: .5 };   // the whole scene
+  if (state.sceneFallback) return { cx: .5, cy: .5, rx: .5, ry: .5, full: true };   // the whole scene, corners included
   return state.report && state.report.status === 'ok' ? EchoDetect.focusAt(state.report, t) : null;
 }
 
 function readMood() {
   const perFrame = state.frames.map((f) => {
     const e = focusFor(f.time);
-    return EchoMood.readPalette(f, { cx: e.cx * f.width, cy: e.cy * f.height, rx: e.rx * f.width, ry: e.ry * f.height });
+    return EchoMood.readPalette(f, { cx: e.cx * f.width, cy: e.cy * f.height, rx: e.rx * f.width, ry: e.ry * f.height, full: e.full });
   });
   state.decision = EchoMood.decide(EchoMood.meanScores(perFrame));
   state.timeline = buildTimeline(perFrame);
@@ -311,7 +311,7 @@ function presentAnalysis() {
 // the pipeline reads video mood, and the sphere is one way to read it, not the only one.
 // An unclear scene keeps the old behavior (mark the sphere yourself).
 function trySceneFallback() {
-  const perFrame = state.frames.map((f) => EchoMood.readPalette(f, { cx: f.width / 2, cy: f.height / 2, rx: f.width / 2, ry: f.height / 2 }));
+  const perFrame = state.frames.map((f) => EchoMood.readPalette(f, { cx: f.width / 2, cy: f.height / 2, rx: f.width / 2, ry: f.height / 2, full: true }));
   if (!EchoMood.decide(EchoMood.meanScores(perFrame)).mood) return false;
   state.sceneFallback = true;
   $('detectionNote').textContent = 'No sphere was found, so the whole scene was read instead (green outline). If there is a sphere in the video, mark it yourself.';
@@ -373,6 +373,7 @@ function startDrawing() {
 
 function setManual(ellipse) {
   state.manual = ellipse;
+  state.sceneFallback = false;
   state.draft = null;
   state.drawing = false;
   stage.classList.remove('drawing');
@@ -822,7 +823,7 @@ $('changeButton').addEventListener('click', () => $('fileInput').click());
 $('fileInput').addEventListener('change', (e) => { const f = e.target.files[0]; e.target.value = ''; handleFile(f); });
 $('drawButton').addEventListener('click', () => { startDrawing(); drawOverlay(); message('Drag from the middle of the sphere out to its edge.'); });
 $('wholeButton').addEventListener('click', () => setManual({ cx: .5, cy: .5, rx: .48, ry: .48 }));
-$('autoButton').addEventListener('click', () => { state.manual = null; presentAnalysis(); });
+$('autoButton').addEventListener('click', () => { state.manual = null; state.sceneFallback = false; presentAnalysis(); });
 $('showOverlay').addEventListener('change', drawOverlay);
 window.addEventListener('resize', drawOverlay, { passive: true });
 $('calmToggle').addEventListener('click', () => setQuiet(!calmMode));
