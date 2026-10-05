@@ -644,9 +644,9 @@ function stop() {
 }
 
 // ---- exporting the video with its song --------------------------------------------------------------------------
-// Records the composite canvas (video + "what was read" overlay) and taps the
-// master bus, so the file hears exactly what the speakers play: crossfades,
-// leveling and envelope included.
+// Records the video frames to a canvas and taps the master bus, so the file
+// hears exactly what the speakers play: crossfades, leveling and envelope
+// included. The export is clean video — no detection overlay.
 
 let exporting = null;
 
@@ -662,7 +662,6 @@ function drawExportFrame() {
   if (!exporting || !exporting.ctx) return;
   const { canvas, ctx } = exporting;
   ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-  if ($('showOverlay').checked) ctx.drawImage(overlay, 0, 0, canvas.width, canvas.height);
   if (state.duration) $('exportBar').style.width = `${Math.min(100, video.currentTime / state.duration * 100)}%`;
 }
 
@@ -702,7 +701,7 @@ async function exportVideo() {
   } catch { dest = null; }
 
   const vw = video.videoWidth || 1280, vh = video.videoHeight || 720;
-  const scale = Math.min(1, 1280 / vw);
+  const scale = Math.min(1, 1920 / vw);
   const canvas = document.createElement('canvas');
   canvas.width = Math.max(2, Math.round(vw * scale));
   canvas.height = Math.max(2, Math.round(vh * scale));
@@ -717,7 +716,7 @@ async function exportVideo() {
 
   const mime = pickExportMime();
   const rec = new MediaRecorder(new MediaStream([vtrack, ...(audioTrack ? [audioTrack] : [])]),
-    mime ? { mimeType: mime, videoBitsPerSecond: 5_000_000 } : undefined);
+    mime ? { mimeType: mime, videoBitsPerSecond: 10_000_000, audioBitsPerSecond: 192_000 } : undefined);
   const chunks = [];
   rec.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
   const stopped = new Promise((res) => { rec.onstop = res; });
