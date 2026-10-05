@@ -730,7 +730,7 @@ async function exportVideo() {
 
   try { video.currentTime = 0; } catch { /* play() seeks anyway */ }
   try {
-    rec.start(250);
+    rec.start();   // no timeslice: one clean blob means valid MP4 structure
   } catch {
     exporting = null;
     teardownExportTracks({ dest, vtrack, audioTrack });
@@ -749,6 +749,113 @@ async function exportVideo() {
   }
 }
 
+// MediaRecorder omits Duration from WebM output; without it most players
+// disable seeking entirely. This patches the correct duration into the
+// EBML header. Never throws: falls back to the original blob when the
+// structure isn't understood.
+async function fixWebMDuration(blob, durationMs) {
+  try {
+    const buf = new Uint8Array(await blob.arrayBuffer());
+
+    const readVint = (pos, asId) => {
+      if (pos >= buf.length) return null;
+      let len = 1;
+      while (len <= 8 && !(buf[pos] & (0x80 >> (len - 1)))) len++;
+      if (len > 8 || pos + len > buf.length) return null;
+      let val = 0;
+      if (asId) {
+        for (let i = 0; i < len; i++) val = val * 256 + buf[pos + i];
+      } else {
+        val = buf[pos] & (0xFF >> len);
+        for (let i = 1; i < len; i++) val = val * 256 + buf[pos + i];
+        if (val === Math.pow(2, 7 * len) - 1) val = -1;   // unknown size
+      }
+      return { len, val };
+    };
+
+    // Find the Segment element (0x18538067).
+    let pos = 0, segDataStart = -1, segDataEnd = -1;
+    while (pos < buf.length) {
+      const id = readVint(pos, true);
+      if (!id) break;
+      const size = readVint(pos + id.len, false);
+      if (!size) break;
+      if (id.val === 0x18538067) {
+        segDataStart = pos + id.len + size.len;
+        segDataEnd = size.val === -1 ? buf.length : segDataStart + size.val;
+        break;
+      }
+      if (size.val === -1) break;
+      pos += id.len + size.len + size.val;
+    }
+    if (segDataStart < 0) return blob;
+
+    // Find Info (0x1549A966) within the Segment.
+    pos = segDataStart;
+    let infoPos = -1, infoLen = -1, infoSizeLen = -1, infoSizeVal = -1;
+    while (pos + 4 <= segDataEnd) {
+      const id = readVint(pos, true);
+      if (!id) break;
+      const size = readVint(pos + id.len, false);
+      if (!size) break;
+      if (id.val === 0x1549A966) {
+        infoPos = pos; infoLen = id.len; infoSizeLen = size.len; infoSizeVal = size.val;
+        break;
+      }
+      if (size.val === -1 || id.val === 0x1F43B675) break;   // Cluster: past Info
+      pos += id.len + size.len + size.val;
+    }
+    if (infoPos < 0 || infoSizeVal < 0) return blob;
+
+    // Walk Info children for TimecodeScale (0x2AD7B1) and Duration (0x4489).
+    const infoDataStart = infoPos + infoLen + infoSizeLen;
+    const infoDataEnd = infoDataStart + infoSizeVal;
+    let timecodeScale = 1000000, durPos = -1, durSizeLen = -1, durDataLen = -1;
+    pos = infoDataStart;
+    while (pos + 2 <= infoDataEnd && pos < buf.length) {
+      const id = readVint(pos, true);
+      if (!id) break;
+      const size = readVint(pos + id.len, false);
+      if (!size || size.val < 0) break;
+      if (id.val === 0x2AD7B1) {
+        timecodeScale = 0;
+        for (let i = 0; i < size.val; i++) timecodeScale = timecodeScale * 256 + buf[pos + id.len + size.len + i];
+      } else if (id.val === 0x4489) {
+        durPos = pos; durSizeLen = size.len; durDataLen = size.val;
+      }
+      pos += id.len + size.len + size.val;
+    }
+    if (!timecodeScale) return blob;
+
+    const f64 = new Uint8Array(8);
+    new DataView(f64.buffer).setFloat64(0, durationMs * 1e6 / timecodeScale, false);
+
+    if (durPos >= 0) {
+      if (durDataLen !== 8) return blob;
+      const out = new Uint8Array(buf);
+      out.set(f64, durPos + 2 + durSizeLen);
+      return new Blob([out], { type: blob.type });
+    }
+
+    // Insert a new Duration element at the start of Info, then grow Info's size.
+    const durEl = new Uint8Array([0x44, 0x89, 0x88, ...f64]);
+    const newBuf = new Uint8Array(buf.length + durEl.length);
+    newBuf.set(buf.subarray(0, infoDataStart), 0);
+    newBuf.set(durEl, infoDataStart);
+    newBuf.set(buf.subarray(infoDataStart), infoDataStart + durEl.length);
+    const newInfoSize = infoSizeVal + durEl.length;
+    if (newInfoSize >= Math.pow(2, 7 * infoSizeLen)) return blob;
+    let v = newInfoSize;
+    const sizeBytes = new Uint8Array(infoSizeLen);
+    for (let i = infoSizeLen - 1; i >= 0; i--) { sizeBytes[i] = v & 0xFF; v = Math.floor(v / 256); }
+    sizeBytes[0] |= (0x80 >> (infoSizeLen - 1));
+    newBuf.set(sizeBytes, infoPos + infoLen);
+    return new Blob([newBuf], { type: blob.type });
+  } catch {
+    return blob;
+  }
+}
+
 async function finishExport() {
   const ex = exporting;
   exporting = null;
@@ -762,7 +869,8 @@ async function finishExport() {
     return;
   }
   const ext = ex.mime.includes('mp4') ? 'mp4' : 'webm';
-  const blob = new Blob(ex.chunks, { type: ex.mime || 'video/webm' });
+  let blob = new Blob(ex.chunks, { type: ex.mime || 'video/webm' });
+  if (ext === 'webm' && state.duration) blob = await fixWebMDuration(blob, state.duration * 1000);
   const a = document.createElement('a');
   const d = new Date(), p = (n) => String(n).padStart(2, '0');
   a.href = URL.createObjectURL(blob);
