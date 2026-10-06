@@ -72,7 +72,7 @@ Licence: https://creativecommons.org/licenses/by/4.0/
 - Trio for Piano Violin and Viola Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0
 - With the Sea Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0
 
-## Anger (19)
+## Dynamic (19)
 
 - All This Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0
 - Black Vortex Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0

@@ -59,7 +59,7 @@
         <div class="mood-grid" role="group" aria-label="Feeling">
           <button class="mood-btn" data-mood="warm" style="--mood:#FFD166" aria-pressed="false"><span class="mood-symbol" aria-hidden="true">✺</span><span>Warm</span></button>
           <button class="mood-btn" data-mood="calm" style="--mood:#A78AEA" aria-pressed="false"><span class="mood-symbol" aria-hidden="true">≈</span><span>Calm</span></button>
-          <button class="mood-btn" data-mood="anger" style="--mood:#EF6370" aria-pressed="false"><span class="mood-symbol" aria-hidden="true">ϟ</span><span>Anger</span></button>
+          <button class="mood-btn" data-mood="anger" style="--mood:#EF6370" aria-pressed="false"><span class="mood-symbol" aria-hidden="true">ϟ</span><span>Dynamic</span></button>
           <button class="mood-btn" data-mood="sad" style="--mood:#75A6D9" aria-pressed="false"><span class="mood-symbol" aria-hidden="true">☾</span><span>Sad</span></button>
         </div>
         <details class="settings"><summary>How this was read</summary><div id="details"></div></details>
@@ -75,6 +75,7 @@
           <a id="downloadSong" class="secondary-button" download>Download the song</a>
           <button id="exportButton" class="secondary-button">Export video</button>
         </div>
+        <label class="toggle credit-toggle"><input id="exportCredit" type="checkbox" checked> Show the song credit in the exported video <span class="helper">The licence (CC BY 4.0) requires it. Turn it off only if you credit the music another way.</span></label>
         <div id="exportRow" class="export-row" hidden>
           <div class="progress export-progress"><span id="exportBar"></span></div>
           <span id="exportLabel" class="helper">Exporting…</span>
@@ -91,7 +92,7 @@
 </div>
 <dialog id="creditsDialog" aria-labelledby="creditsTitle">
   <div class="dialog-head"><h2 id="creditsTitle">Made of light and sound.</h2><button id="closeCredits" class="icon-button" aria-label="Close credits">×</button></div>
-  <p>Your video is opened and read inside this page. It is never uploaded. The sphere is found from its rim, its lit and coloured interior and its movement, then its colours give the feeling: gold is Warm, violet is Calm, blue is Sad, red is Anger. That is a colour rule, not a trained model, so it can be wrong, and you can always choose the feeling yourself.</p>
+  <p>Your video is opened and read inside this page. It is never uploaded. The sphere is found from its rim, its lit and coloured interior and its movement, then its colours give the feeling: gold is Warm, violet is Calm, blue is Sad, red or orange is Dynamic. That is a colour rule, not a trained model, so it can be wrong, and you can always choose the feeling yourself.</p>
   <h3>The songs</h3>
   <p>Recorded music by Kevin MacLeod (<a href="https://incompetech.com">incompetech.com</a>), licensed under <a href="https://creativecommons.org/licenses/by/4.0/">Creative Commons: By Attribution 4.0</a>. The credit for the song that is playing is shown under it. Songs are shortened and faded to fit the video. <a id="creditsLink" href="https://github.com/Ehtiram-Shukurov/echosphere-music/blob/main/music-library/CREDITS.md">The full list of credits</a>.</p>
   <p>The source, the guide and the tests are in the <a href="https://github.com/Ehtiram-Shukurov/echosphere-music">project on GitHub</a>.</p>

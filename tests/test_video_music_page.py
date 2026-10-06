@@ -9,7 +9,8 @@ from pathlib import Path
 import pytest
 from playwright.sync_api import sync_playwright
 from tests.static_server import serve
-from tests.synthetic import make_video
+import cv2
+from tests.synthetic import make_flat_video, make_video
 
 ROOT = Path(__file__).resolve().parent.parent
 pytestmark = pytest.mark.skipif(not (ROOT / 'music-library' / 'manifest.json').exists(), reason='the music library is not present')
@@ -27,6 +28,8 @@ def clips(tmp_path_factory):
     for name, kwargs in {'warm': {}, 'mixed': {'hue': (215, 120, 40), 'hue2': (215, 60, 150)}, 'nosphere': {'sphere': False}}.items():
         make_video(d / f'{name}.mp4', **kwargs)
         made[name] = webm(d / f'{name}.mp4', d / f'{name}.webm')
+    make_flat_video(d / 'grey.mp4', bgr=(128, 128, 128))        # no sphere and no coloured light at all
+    made['grey'] = webm(d / 'grey.mp4', d / 'grey.webm')
     (d / 'notavideo.mp4').write_text('this is not a video')
     made['bad'] = d / 'notavideo.mp4'
     return made
@@ -120,8 +123,15 @@ def test_a_mixture_of_blue_and_violet_asks_instead_of_guessing(page, clips):
     page.wait_for_function("EchoApp.state.track && EchoApp.state.track.mood === 'calm'", timeout=30000)
 
 
-def test_no_sphere_means_the_page_asks_you_to_mark_it(page, clips):
-    feed(page, clips['nosphere'], song=False)
+def test_no_sphere_but_a_clear_scene_reads_the_whole_scene(page, clips):
+    feed(page, clips['nosphere'])
+    state = page.evaluate("({fallback: EchoApp.state.sceneFallback, mood: EchoApp.state.mood, drawing: EchoApp.state.drawing, note: document.getElementById('detectionNote').textContent})")
+    assert state['fallback'] and state['mood'] is not None and not state['drawing']
+    assert 'whole scene was read' in state['note']
+
+
+def test_no_sphere_and_no_coloured_light_asks_you_to_mark_it(page, clips):
+    feed(page, clips['grey'], song=False)
     state = page.evaluate("({status: EchoApp.state.report.status, drawing: EchoApp.state.drawing, feeling: !document.getElementById('feelingPanel').hidden, note: document.getElementById('detectionNote').textContent})")
     assert state['status'] == 'rejected' and state['drawing'] and not state['feeling']
     assert 'could not be found reliably' in state['note']
@@ -132,6 +142,44 @@ def test_no_sphere_means_the_page_asks_you_to_mark_it(page, clips):
     page.mouse.up()
     page.wait_for_function("EchoApp.state.decision !== null", timeout=10000)
     assert page.evaluate("EchoApp.state.manual !== null")
+
+
+def test_the_fourth_feeling_is_called_dynamic(page, clips):
+    feed(page, clips['warm'])
+    assert page.inner_text('.mood-btn[data-mood="anger"]').strip().endswith('Dynamic')
+    page.click('.mood-btn[data-mood="anger"]')
+    page.wait_for_function("EchoApp.state.track && EchoApp.state.track.mood === 'anger' && EchoApp.audio.readyState >= 3", timeout=30000)
+    assert page.inner_text('#moodTitle').startswith('Dynamic')
+    assert 'Dynamic' in page.inner_text('#songMeta')
+    assert 'Anger' not in page.inner_text('body')
+
+
+def export_and_frame(pg, tmp_path, name, credit):
+    """Exports the video with or without the credit switch and returns the bottom strip of a frame, as brightness values."""
+    pg.set_checked('#exportCredit', credit)
+    with pg.expect_download(timeout=120000) as download:
+        pg.click('#exportButton')
+    file = tmp_path / f'{name}{Path(download.value.suggested_filename).suffix}'
+    download.value.save_as(str(file))
+    png = tmp_path / f'{name}.png'
+    subprocess.run(['ffmpeg', '-v', 'error', '-y', '-ss', '3', '-i', str(file), '-frames:v', '1', str(png)], check=True)
+    frame = cv2.imread(str(png), cv2.IMREAD_GRAYSCALE)
+    h = frame.shape[0]
+    return frame[int(h * .90):], frame[: int(h * .5)], png
+
+
+def test_the_exported_video_carries_the_song_credit(page, clips, tmp_path):
+    feed(page, clips['warm'])
+    credit = page.evaluate("creditText(1)")
+    assert 'Kevin MacLeod (incompetech.com)' in credit and 'creativecommons.org/licenses/by/4.0' in credit and 'Edited' in credit
+    with_credit, top_with, png = export_and_frame(page, tmp_path, 'with', True)
+    page.wait_for_function("!document.getElementById('exportButton').disabled", timeout=30000)
+    without, top_without, _ = export_and_frame(page, tmp_path, 'without', False)
+    # The credit is a dark band with white text along the bottom; the rest of the picture is the same either way.
+    assert with_credit.mean() < without.mean() * .75, (with_credit.mean(), without.mean())
+    assert (with_credit < 100).mean() > .6 and (with_credit > 235).mean() > .01     # a dark band with white text on it
+    assert (without < 100).mean() < .2
+    assert abs(float(top_with.mean()) - float(top_without.mean())) < 12
 
 
 def test_a_file_that_is_not_a_video_gets_a_clear_message(page, clips):

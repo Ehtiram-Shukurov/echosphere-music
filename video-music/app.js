@@ -2,7 +2,7 @@
 // EchoSphere, browser edition: add a video, find the sphere, read its feeling, play a song. Nothing leaves the device.
 const $ = (id) => document.getElementById(id);
 const BASE = '../music-library/';
-const NAMES = { warm: 'Warm', calm: 'Calm', anger: 'Anger', sad: 'Sad' };
+const NAMES = { warm: 'Warm', calm: 'Calm', anger: 'Dynamic', sad: 'Sad' };
 const THEME = { warm: ['#FFD166', '255,209,102'], calm: ['#B59BEA', '123,78,214'], anger: ['#F27982', '193,18,31'], sad: ['#98BEDF', '58,110,165'] };
 const MAX_SIDE = 320, MAX_SAMPLES = 100, SAMPLES_PER_SECOND = 5;
 
@@ -659,10 +659,44 @@ function pickExportMime() {
   return '';
 }
 
+// The credit for the song playing at time t, as one sentence. CC BY 4.0 asks for the title, the author, the licence and a link to it.
+function creditText(t) {
+  const seg = state.segs[segAt(t)];
+  return `Music: ${EchoLibrary.creditLine(seg.track)} (${seg.track.license_url || 'https://creativecommons.org/licenses/by/4.0/'}). ${EchoLibrary.EDIT_NOTE}`;
+}
+
+function wrapLines(ctx, text, maxWidth) {
+  const lines = [];
+  let line = '';
+  for (const word of text.split(/\s+/)) {
+    const next = line ? `${line} ${word}` : word;
+    if (line && ctx.measureText(next).width > maxWidth) { lines.push(line); line = word; } else line = next;
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+// Draws the credit of the current song along the bottom of the exported picture, so it travels with the video.
+function drawCredit(ctx, canvas, t) {
+  if (!state.segs || !state.segs.length) return;
+  const size = Math.max(13, Math.round(canvas.height * .021)), pad = Math.round(size * .9), lineHeight = Math.round(size * 1.3);
+  ctx.save();
+  ctx.font = `${size}px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`;
+  ctx.textBaseline = 'top';
+  const lines = wrapLines(ctx, creditText(t), canvas.width - 2 * pad);
+  const height = lines.length * lineHeight + pad;
+  ctx.fillStyle = 'rgba(0,0,0,.6)';
+  ctx.fillRect(0, canvas.height - height, canvas.width, height);
+  ctx.fillStyle = '#fff';
+  lines.forEach((text, i) => ctx.fillText(text, pad, canvas.height - height + pad / 2 + i * lineHeight));
+  ctx.restore();
+}
+
 function drawExportFrame() {
   if (!exporting || !exporting.ctx) return;
   const { canvas, ctx } = exporting;
   ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  if (exporting.credit) drawCredit(ctx, canvas, video.currentTime);
   if (state.duration) $('exportBar').style.width = `${Math.min(100, video.currentTime / state.duration * 100)}%`;
 }
 
@@ -722,7 +756,7 @@ async function exportVideo() {
   rec.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
   const stopped = new Promise((res) => { rec.onstop = res; });
 
-  Object.assign(exporting, { rec, dest, canvas, ctx, vtrack, audioTrack, chunks, stopped, mime, starting: false });
+  Object.assign(exporting, { rec, dest, canvas, ctx, vtrack, audioTrack, chunks, stopped, mime, starting: false, credit: $('exportCredit').checked });
   setExportUI(true);
   $('exportBar').style.width = '0%';
   $('exportLabel').textContent = 'Exporting — the video plays once while its song is recorded…';
