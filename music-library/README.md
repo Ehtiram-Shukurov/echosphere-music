@@ -1,6 +1,6 @@
 # Music library
 
-Recorded tracks the system plays for a mood: `warm/`, `calm/`, `sad/`, `anger/`.
+Recorded tracks the system plays for a mood: `warm/`, `calm/`, `sad/`, `anger/`. The `anger/` folder is the Dynamic mood: it was renamed for display only, so its id and folder stay `anger`.
 
 ## These tracks are not covered by this repository's code licence
 

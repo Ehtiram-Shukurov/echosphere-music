@@ -32,6 +32,7 @@ import scan_music  # noqa: E402
 
 MOODS = scan_music.MOODS
 TARGET_LUFS = -20.0
+DISPLAY = {'anger': 'Dynamic'}   # the fourth mood is called Dynamic; its id and folder stay 'anger'
 LICENSES = {
     'kevin macleod': {
         'license': 'CC BY 4.0', 'source': 'incompetech.com', 'artist': 'Kevin MacLeod',
@@ -199,7 +200,7 @@ def write_credits(library, tracks):
              'Licence: https://creativecommons.org/licenses/by/4.0/', '']
     for mood in MOODS:
         rows = [t for t in used if t['mood'] == mood]
-        lines += [f'## {mood.capitalize()} ({len(rows)})', '']
+        lines += [f'## {DISPLAY.get(mood, mood.capitalize())} ({len(rows)})', '']
         lines += [f"- {t['credit']}" for t in rows]
         lines.append('')
     lines += ['## Source', '', 'Kevin MacLeod, incompetech.com. Terms as stated on https://incompetech.com/music/royalty-free/faq.html '
@@ -252,7 +253,7 @@ def write_review(library, tracks, seed=7):
         group = t.get('conflict') or [t['id']]
         why = t['reasons'][0] if t['status'] == 'conflict' else _why(t, means)
         looks = t['checks']['centroid_mood'] if t['checks']['both_name_other_mood'] else None
-        buttons = ''.join(f'<button data-mood="{m}">{m.capitalize()}</button>' for m in MOODS)
+        buttons = ''.join(f'<button data-mood="{m}">{DISPLAY.get(m, m.capitalize())}</button>' for m in MOODS)
         note = f'<div class="looks">Automatic check says it sounds more like <b>{looks}</b>.</div>' if looks else ''
         return (f'<article class="card" data-group="{html.escape(json.dumps(group))}" data-folder="{t["folder"]}" data-kind="{kind}">'
                 f'<h3>{html.escape(t["title"])} <span class="tag">in {t["folder"]}</span></h3>{note}'

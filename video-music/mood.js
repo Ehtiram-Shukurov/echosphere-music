@@ -1,7 +1,7 @@
 // Reads a mood from the light inside the sphere. A port of the palette rule in server/analysis.py.
 //
 // This is EchoSphere's own colour code, not a trained model: gold is Warm, pale violet is Calm, blue is Sad,
-// red or orange is Anger. The numbers it returns are relative shares of coloured light, NOT probabilities.
+// red or orange is Dynamic (its internal id is still "anger"). The numbers it returns are relative shares of coloured light, NOT probabilities.
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory();
   else root.EchoMood = factory();

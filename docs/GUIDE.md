@@ -8,7 +8,7 @@
 
 ## 1. The 60-second summary
 
-**What it does.** You give it a video of the EchoSphere robot. It finds the glowing sphere, reads the sphere's colors to decide a mood (Warm, Calm, Sad or Anger), picks a matching recorded track from the music library, cuts it to the video's length, and hands you back the music and the video with the music added.
+**What it does.** You give it a video of the EchoSphere robot. It finds the glowing sphere, reads the sphere's colors to decide a mood (Warm, Calm, Sad or Dynamic), picks a matching recorded track from the music library, cuts it to the video's length, and hands you back the music and the video with the music added.
 
 **Why it exists.** The team changed the goal from "make music from a song" to "make music from what the robot's sphere *looks like*", with an API so the robot and the team can call it automatically.
 
@@ -62,7 +62,7 @@
                  how bright, how much movement.
         │
         ▼
- 4. CHOOSE MOOD  gold → Warm   violet → Calm   blue → Sad   red/orange → Anger
+ 4. CHOOSE MOOD  gold → Warm   violet → Calm   blue → Sad   red/orange → Dynamic
                  If the colors don't clearly agree, STOP and say so.
         │
         ▼
@@ -80,7 +80,7 @@
 **Some important ideas behind it.**
 
 - **Only the sphere is read.** All four sample images show the same smiling face, so a general "what emotion is this?" model would call every one cheerful. EchoSphere expresses feelings through the *sphere's light*, so we read only the inside of the sphere. The robot's face is deliberately ignored.
-- **The colors are a product rule, not AI.** Gold means Warm, pale violet means Calm, blue means Sad, red-orange means Anger. These are EchoSphere's own palette, applied by a fixed rule. There is no trained model.
+- **The colors are a product rule, not AI.** Gold means Warm, pale violet means Calm, blue means Sad, red-orange means Dynamic (called Anger earlier in the project). These are EchoSphere's own palette, applied by a fixed rule. There is no trained model.
 - **The music is rule-based, not AI-generated.** Each mood is a preset (tempo, key, instruments, brightness, reverb), proposed with AI help from music-emotion research and refined by listening. The engine composes notes from those rules. No generative music model is used, and nothing is copied from any recording.
 - **Finding the sphere uses no AI either.** It is ordinary image analysis (looking for a round glass edge with a lit, textured interior), followed by tracking the ball across frames. It runs on a plain CPU and costs nothing.
 - **It refuses to guess quietly.** If it can't find the sphere reliably, or the mood is unclear, the job *fails with an explanation* and keeps pictures showing what it looked at. You can then supply the answer yourself.
@@ -315,7 +315,7 @@ The site is down for a few minutes while it rebuilds. To roll back, check out th
 
 **What changed.** The sphere-reading half is unchanged. The last step, which used to compose music, now **picks a real recorded track** from `music-library/<mood>/`, cuts it to the video's length, levels its volume and fades it. This is the default for `POST /v1/soundtracks/auto`; `engine=composer` still works.
 
-**What is in the library now.** 76 tracks, all by Kevin MacLeod (incompetech.com), 74 of them approved for use: Warm 15, Calm 21, Sad 19, Anger 19. Their licence, **CC BY 4.0, allows commercial use but requires the credit** wherever the music is used. Every exported file carries its credit, the result page shows it, and `music-library/CREDITS.md` lists them all. **The product itself must show those credits.**
+**What is in the library now.** 76 tracks, all by Kevin MacLeod (incompetech.com), 74 of them approved for use: Warm 15, Calm 21, Sad 19, Dynamic 19. Their licence, **CC BY 4.0, allows commercial use but requires the credit** wherever the music is used. Every exported file carries its credit, the result page shows it, and `music-library/CREDITS.md` lists them all. **The product itself must show those credits.**
 
 **How a track is picked.** Each track is scored by how close its feel (brightness, intensity, energy) is to the mood's ideal point, and the seed picks among the three closest. The excerpt starts on a beat: beat positions are pre-measured for every track and stored in the manifest, so the music starts on a musical downbeat instead of mid-phrase.
 
@@ -349,7 +349,7 @@ The site is down for a few minutes while it rebuilds. To roll back, check out th
 
 **Music follows the video's feelings over time.** The timeline is split into stretches where one feeling dominates. Each stretch gets its own energy-matched track, and the tracks crossfade into each other. If you pick a feeling by hand, it collapses to a single track.
 
-**Export video.** A button records the video with its full soundtrack and downloads it as an MP4 (WebM where MP4 is unsupported). The recording is clean — no detection outlines — up to 1080p at 10 Mbps video plus 192 kbps audio, and the file seeks normally in any player. It is a live browser recording, not a studio render, so quality has a ceiling.
+**Export video.** A button records the video with its full soundtrack and downloads it as an MP4 (WebM where MP4 is unsupported). The recording is clean of detection outlines, but the credit of the song playing (title, author, licence, link) is drawn along the bottom because the licence requires it; a switch turns it off. It is up to 1080p at 10 Mbps video plus 192 kbps audio, and the file seeks normally in any player. It is a live browser recording, not a studio render, so quality has a ceiling.
 
 **Scene fallback.** If the sphere can't be found reliably, the page reads the whole scene instead — but only when the scene's colors clearly point to one feeling. A snowy blue scene reads Sad; a truly mixed scene still asks you. Picking a feeling by hand, or going back to auto-detect, clears the fallback.
 
@@ -363,7 +363,7 @@ The site is down for a few minutes while it rebuilds. To roll back, check out th
 
 - **API:** a way for one program to ask another to do something over the internet. Here: "make a soundtrack from this video."
 - **Job:** one request being worked on. You get its `id` at once and check back later.
-- **Mood:** one of Warm, Calm, Sad, Anger.
+- **Mood:** one of Warm, Calm, Sad, Dynamic. The fourth was called Anger earlier; its id and folder are still `anger`.
 - **Sphere / focus:** the glowing glass ball on the robot / the region we read inside it.
 - **Overlay:** a picture or video with the selected region drawn on it, so a person can check it.
 - **Ambiguous:** the colors don't clearly point to one mood.

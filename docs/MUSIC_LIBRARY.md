@@ -8,7 +8,7 @@ Nothing is generated. For each video the system picks one approved track from th
 
 ```
 music-library/
-  warm/  calm/  sad/  anger/     the tracks, sorted by the mood you filed them under
+  warm/  calm/  sad/  anger/     the tracks, sorted by the mood you filed them under (`anger/` is the Dynamic mood: only its name changed)
   manifest.json                  what the server reads. Generated. Tracked in Git.
   CREDITS.md                     the attribution lines the licence requires. Generated. Tracked in Git.
   decisions.json                 YOUR decisions (approve, relabel, remove). Yours to keep.
