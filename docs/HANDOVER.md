@@ -2,6 +2,8 @@
 
 Written 5 October 2026 so someone else can continue the music project. Read this first, then `BROWSER_VERSION.md`.
 
+**Author:** Ehtiram Shukurov ([@Ehtiram-Shukurov](https://github.com/Ehtiram-Shukurov)), 16 September to 5 October 2026. **Maintainer from here:** add your name and GitHub link to the "Author and maintainers" section of the main `README.md`.
+
 ## What it is
 
 A web page that runs entirely in the browser. You add a video of the EchoSphere robot. The page finds the sphere, reads the colour of its light, decides the mood (Warm, Calm, Sad or Dynamic), picks a matching song from `music-library/`, and plays it with the video. You can download the song or export the video with the song in it (the song's credit is drawn into the picture). Nothing is uploaded. There is no server and no cloud.
