@@ -28,6 +28,4 @@ Instrument recordings from [tonejs-instruments by Nathaniel Brosowsky](https://g
 
 - **Original author:** Ehtiram Shukurov ([@Ehtiram-Shukurov](https://github.com/Ehtiram-Shukurov)), IPMD developer, 16 September to 5 October 2026. Built the music page, the video-to-music pipeline, the browser edition, the music library and its review, the tests and the documentation.
 - **Handed over:** October 2026, for another IPMD developer to continue. Start with [docs/HANDOVER.md](docs/HANDOVER.md).
-- **Current maintainer:** add your name and GitHub link here when you take over.
-
 No uploaded videos, generated media, model weights or credentials are committed.
